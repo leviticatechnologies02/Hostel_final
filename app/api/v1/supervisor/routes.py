@@ -13,7 +13,8 @@ from datetime import UTC, datetime
 from app.core.security import verify_password, hash_password
 from app.repositories.user_repository import UserRepository
 from pydantic import ValidationError as PydanticValidationError
-
+import re
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status  
 from app.dependencies import CurrentUser, require_roles
 from app.dependencies import DBSession
 from app.schemas.attendance import AttendanceCreateRequest, AttendanceResponse
@@ -41,6 +42,33 @@ class SupervisorChangePasswordRequest(BaseModel):
     old_password: str = Field(min_length=8, max_length=128)
     new_password: str = Field(min_length=8, max_length=128)
     confirm_password: str = Field(min_length=8, max_length=128)
+    
+class SupervisorProfileResponse(BaseModel):
+    """Supervisor profile response model"""
+    id: str
+    email: str
+    phone: str
+    full_name: str
+    role: str
+    profile_picture_url: str | None = None
+    is_active: bool
+    is_email_verified: bool
+    is_phone_verified: bool
+    created_at: datetime
+    updated_at: datetime
+
+class SupervisorProfileUpdateRequest(BaseModel):
+    """Request to update supervisor profile"""
+    full_name: str | None = Field(default=None, min_length=2, max_length=255)
+    phone: str | None = Field(default=None, min_length=8, max_length=30)
+    profile_picture_url: str | None = None
+
+class SupervisorChangePasswordRequest(BaseModel):
+    """Request to change supervisor password"""
+    old_password: str = Field(min_length=8, max_length=128)
+    new_password: str = Field(min_length=8, max_length=128)
+    confirm_password: str = Field(min_length=8, max_length=128)
+
 
 
 @router.get("/dashboard", response_model=SupervisorDashboardResponse)
@@ -459,7 +487,203 @@ async def delete_complaint(
     return Response(status_code=204)
 
 @router.post("/change-password")
-async def change_password(
+async def change_supervisor_password(
+    request: Request,  # Add this to get raw body
+    current_user: SupervisorUser,
+    db: DBSession
+):
+    """
+    **Change supervisor password.**
+    
+    Requirements:
+    - Current password must be correct
+    - New password: min 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 special char
+    - New password and confirm password must match
+    
+    After successful change, all other sessions are revoked for security.
+    """
+    from app.models.user import User
+    from sqlalchemy import select
+    
+    # Parse body manually to avoid Pydantic validation
+    body = await request.json()
+    old_password = body.get("old_password", "")
+    new_password = body.get("new_password", "")
+    confirm_password = body.get("confirm_password", "")
+    
+    # Validate passwords match FIRST
+    if new_password != confirm_password:
+        raise HTTPException(
+            status_code=400,
+            detail="New passwords do not match."
+        )
+    
+    # Validate new password strength BEFORE any other operations
+    errors = []
+    if len(new_password) < 8:
+        errors.append("Password must be at least 8 characters")
+    if not re.search(r'[A-Z]', new_password):
+        errors.append("Password must contain at least one uppercase letter")
+    if not re.search(r'[a-z]', new_password):
+        errors.append("Password must contain at least one lowercase letter")
+    if not re.search(r'[0-9]', new_password):
+        errors.append("Password must contain at least one number")
+    if not re.search(r'[!@#$%^&*(),.?":{}|<>]', new_password):
+        errors.append("Password must contain at least one special character")
+    
+    if errors:
+        raise HTTPException(
+            status_code=400,
+            detail="; ".join(errors)
+        )
+    
+    # Get the user record
+    result = await db.execute(
+        select(User).where(User.id == current_user.id)
+    )
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found.")
+    
+    # Verify current password
+    if not verify_password(old_password, user.password_hash):
+        raise HTTPException(
+            status_code=401,
+            detail="Current password is incorrect."
+        )
+    
+    # Hash and update password
+    user.password_hash = hash_password(new_password)
+    
+    # Revoke all other sessions for security (keep current)
+    repo = UserRepository(db)
+    await repo.revoke_all_refresh_tokens(
+        user_id=current_user.id,
+        revoked_at=datetime.now(UTC)
+    )
+    
+    await db.commit()
+    
+    return {
+        "message": "Password changed successfully.",
+        "user_id": str(user.id)
+    }
+
+
+@router.get("/profile", response_model=SupervisorProfileResponse)
+async def get_supervisor_profile(
+    current_user: SupervisorUser,
+    db: DBSession,
+):
+    """
+    **Get supervisor profile information.**
+    
+    Returns personal details including name, email, phone, and assigned hostels.
+    """
+    from app.models.user import User
+    from sqlalchemy import select
+    
+    result = await db.execute(
+        select(User).where(User.id == current_user.id)
+    )
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found.")
+    
+    # Get assigned hostels for display
+    from app.models.hostel import SupervisorHostelMapping, Hostel
+    hostel_result = await db.execute(
+        select(Hostel.name)
+        .join(SupervisorHostelMapping, SupervisorHostelMapping.hostel_id == Hostel.id)
+        .where(SupervisorHostelMapping.supervisor_id == current_user.id)
+    )
+    assigned_hostels = [row[0] for row in hostel_result.all()]
+    
+    return {
+        "id": str(user.id),
+        "email": user.email,
+        "phone": user.phone,
+        "full_name": user.full_name,
+        "role": user.role.value if hasattr(user.role, "value") else str(user.role),
+        "profile_picture_url": user.profile_picture_url,
+        "is_active": user.is_active,
+        "is_email_verified": user.is_email_verified,
+        "is_phone_verified": user.is_phone_verified,
+        "assigned_hostels": assigned_hostels,  # Extra field for UI
+        "created_at": user.created_at,
+        "updated_at": user.updated_at,
+    }
+
+
+@router.patch("/profile", response_model=SupervisorProfileResponse)
+async def update_supervisor_profile(
+    payload: SupervisorProfileUpdateRequest,
+    current_user: SupervisorUser,
+    db: DBSession,
+):
+    """
+    **Update supervisor profile.**
+    
+    Can update: full_name, phone, profile_picture_url.
+    Email cannot be changed by supervisor (requires admin action).
+    """
+    from app.models.user import User
+    from sqlalchemy import select
+    
+    result = await db.execute(
+        select(User).where(User.id == current_user.id)
+    )
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found.")
+    
+    # Update full name
+    if payload.full_name is not None:
+        user.full_name = payload.full_name
+    
+    # Update phone (check uniqueness)
+    if payload.phone is not None:
+        # Check if phone already taken by another user
+        existing = await db.execute(
+            select(User).where(
+                User.phone == payload.phone,
+                User.id != current_user.id
+            )
+        )
+        if existing.scalar_one_or_none():
+            raise HTTPException(
+                status_code=409,
+                detail="Phone number already registered by another user."
+            )
+        user.phone = payload.phone
+    
+    # Update profile picture
+    if payload.profile_picture_url is not None:
+        user.profile_picture_url = payload.profile_picture_url
+    
+    await db.commit()
+    await db.refresh(user)
+    
+    return {
+        "id": str(user.id),
+        "email": user.email,
+        "phone": user.phone,
+        "full_name": user.full_name,
+        "role": user.role.value if hasattr(user.role, "value") else str(user.role),
+        "profile_picture_url": user.profile_picture_url,
+        "is_active": user.is_active,
+        "is_email_verified": user.is_email_verified,
+        "is_phone_verified": user.is_phone_verified,
+        "created_at": user.created_at,
+        "updated_at": user.updated_at,
+    }
+
+
+@router.post("/change-password")
+async def change_supervisor_password(
     payload: SupervisorChangePasswordRequest,
     current_user: SupervisorUser,
     db: DBSession
@@ -467,10 +691,17 @@ async def change_password(
     """
     **Change supervisor password.**
     
-    Requires current password verification. After successful change,
-    all other sessions are revoked for security.
+    Requirements:
+    - Current password must be correct
+    - New password: min 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 special char
+    - New password and confirm password must match
+    
+    After successful change, all other sessions are revoked for security.
     """
-    # MANUAL VALIDATION - Check if passwords match FIRST
+    from app.models.user import User
+    from sqlalchemy import select
+    
+    # Validate passwords match
     if payload.new_password != payload.confirm_password:
         raise HTTPException(
             status_code=400,
@@ -478,7 +709,9 @@ async def change_password(
         )
     
     # Get the user record
-    result = await db.execute(select(User).where(User.id == current_user.id))
+    result = await db.execute(
+        select(User).where(User.id == current_user.id)
+    )
     user = result.scalar_one_or_none()
     
     if not user:
@@ -487,7 +720,7 @@ async def change_password(
     # Verify current password
     if not verify_password(payload.old_password, user.password_hash):
         raise HTTPException(
-            status_code=401, 
+            status_code=401,
             detail="Current password is incorrect."
         )
     
@@ -506,7 +739,7 @@ async def change_password(
     
     if errors:
         raise HTTPException(
-            status_code=400, 
+            status_code=400,
             detail="; ".join(errors)
         )
     

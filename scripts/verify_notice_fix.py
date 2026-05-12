@@ -228,4 +228,4 @@ if __name__ == "__main__":
     print_section("VERIFY NOTICE DATE FIELDS FIX")
     test_create_notice_with_dates()
     test_student_notice_dates()
-    test_admin_notice_dates()
+    test_admin_notice_dates()j

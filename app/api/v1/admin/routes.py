@@ -12,6 +12,7 @@ from app.schemas.admin import (
     DirectStudentAddRequest,
     DirectStudentAddResponse,
 )
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status  
 from app.schemas.complaint import ComplaintUpdateRequest
 from app.schemas.hostel import HostelDetailResponse, HostelUpdateRequest, HostelListItem
 from app.schemas.room import (
@@ -29,6 +30,11 @@ from app.schemas.booking import (
     BookingRejectionRequest,
     BookingCancellationRequest,
 )
+from pydantic import BaseModel, Field
+import re
+from datetime import UTC, datetime
+from app.core.security import verify_password, hash_password
+from app.repositories.user_repository import UserRepository
 from app.schemas.student import CompleteStudentDetailResponse
 from app.services.admin_service import AdminService
 from app.schemas.payment import PaymentResponse
@@ -54,6 +60,35 @@ from pydantic import ValidationError as PydanticValidationError
 
 router = APIRouter()
 AdminUser = Annotated[CurrentUser, Depends(require_roles("hostel_admin"))]
+
+
+class AdminProfileResponse(BaseModel):
+    """Admin profile response model"""
+    id: str
+    email: str
+    phone: str
+    full_name: str
+    role: str
+    profile_picture_url: str | None = None
+    is_active: bool
+    is_email_verified: bool
+    is_phone_verified: bool
+    assigned_hostels: list[dict] = []
+    created_at: datetime
+    updated_at: datetime
+
+class AdminProfileUpdateRequest(BaseModel):
+    """Request to update admin profile"""
+    full_name: str | None = Field(default=None, min_length=2, max_length=255)
+    phone: str | None = Field(default=None, min_length=8, max_length=30)
+    profile_picture_url: str | None = None
+
+class AdminChangePasswordRequest(BaseModel):
+    """Request to change admin password"""
+    old_password: str = Field(min_length=8, max_length=128)
+    new_password: str = Field(min_length=8, max_length=128)
+    confirm_password: str = Field(min_length=8, max_length=128)
+
 
 
 def handle_validation_error(e: ValueError) -> None:
@@ -1361,3 +1396,226 @@ async def update_maintenance_request_admin(
         request_id=request_id,
         payload=payload
     )
+
+@router.get("/profile", response_model=AdminProfileResponse)
+async def get_admin_profile(
+    current_user: AdminUser,
+    db: DBSession,
+):
+    """
+    **Get admin profile information.**
+    
+    Returns personal details including name, email, phone, and assigned hostels.
+    """
+    from app.models.user import User
+    from app.models.hostel import AdminHostelMapping, Hostel
+    from sqlalchemy import select
+    
+    result = await db.execute(
+        select(User).where(User.id == current_user.id)
+    )
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found.")
+    
+    # Get assigned hostels with details
+    hostel_result = await db.execute(
+        select(Hostel.id, Hostel.name, Hostel.city, Hostel.status, AdminHostelMapping.is_primary)
+        .join(AdminHostelMapping, AdminHostelMapping.hostel_id == Hostel.id)
+        .where(AdminHostelMapping.admin_id == current_user.id)
+    )
+    assigned_hostels = [
+        {
+            "id": str(row.id),
+            "name": row.name,
+            "city": row.city,
+            "status": row.status.value if hasattr(row.status, "value") else str(row.status),
+            "is_primary": row.is_primary
+        }
+        for row in hostel_result.all()
+    ]
+    
+    return {
+        "id": str(user.id),
+        "email": user.email,
+        "phone": user.phone,
+        "full_name": user.full_name,
+        "role": user.role.value if hasattr(user.role, "value") else str(user.role),
+        "profile_picture_url": user.profile_picture_url,
+        "is_active": user.is_active,
+        "is_email_verified": user.is_email_verified,
+        "is_phone_verified": user.is_phone_verified,
+        "assigned_hostels": assigned_hostels,
+        "created_at": user.created_at,
+        "updated_at": user.updated_at,
+    }
+
+
+@router.patch("/profile", response_model=AdminProfileResponse)
+async def update_admin_profile(
+    payload: AdminProfileUpdateRequest,
+    current_user: AdminUser,
+    db: DBSession,
+):
+    """
+    **Update admin profile.**
+    
+    Can update: full_name, phone, profile_picture_url.
+    Email cannot be changed by admin (requires super admin action).
+    """
+    from app.models.user import User
+    from sqlalchemy import select
+    
+    result = await db.execute(
+        select(User).where(User.id == current_user.id)
+    )
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found.")
+    
+    # Update full name
+    if payload.full_name is not None:
+        user.full_name = payload.full_name
+    
+    # Update phone (check uniqueness)
+    if payload.phone is not None:
+        # Check if phone already taken by another user
+        existing = await db.execute(
+            select(User).where(
+                User.phone == payload.phone,
+                User.id != current_user.id
+            )
+        )
+        if existing.scalar_one_or_none():
+            raise HTTPException(
+                status_code=409,
+                detail="Phone number already registered by another user."
+            )
+        user.phone = payload.phone
+    
+    # Update profile picture
+    if payload.profile_picture_url is not None:
+        user.profile_picture_url = payload.profile_picture_url
+    
+    await db.commit()
+    await db.refresh(user)
+    
+    # Get assigned hostels for response
+    from app.models.hostel import AdminHostelMapping, Hostel
+    hostel_result = await db.execute(
+        select(Hostel.id, Hostel.name, Hostel.city, Hostel.status, AdminHostelMapping.is_primary)
+        .join(AdminHostelMapping, AdminHostelMapping.hostel_id == Hostel.id)
+        .where(AdminHostelMapping.admin_id == current_user.id)
+    )
+    assigned_hostels = [
+        {
+            "id": str(row.id),
+            "name": row.name,
+            "city": row.city,
+            "status": row.status.value if hasattr(row.status, "value") else str(row.status),
+            "is_primary": row.is_primary
+        }
+        for row in hostel_result.all()
+    ]
+    
+    return {
+        "id": str(user.id),
+        "email": user.email,
+        "phone": user.phone,
+        "full_name": user.full_name,
+        "role": user.role.value if hasattr(user.role, "value") else str(user.role),
+        "profile_picture_url": user.profile_picture_url,
+        "is_active": user.is_active,
+        "is_email_verified": user.is_email_verified,
+        "is_phone_verified": user.is_phone_verified,
+        "assigned_hostels": assigned_hostels,
+        "created_at": user.created_at,
+        "updated_at": user.updated_at,
+    }
+
+
+@router.post("/change-password")
+async def change_admin_password(
+    request: Request,  # Add this to get raw body
+    current_user: AdminUser,
+    db: DBSession
+):
+    """
+    **Change admin password.**
+    
+    Requirements:
+    - Current password must be correct
+    - New password: min 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 special char
+    - New password and confirm password must match
+    
+    After successful change, all other sessions are revoked for security.
+    """
+    from app.models.user import User
+    from sqlalchemy import select
+    
+    # Parse body manually to avoid Pydantic validation
+    body = await request.json()
+    old_password = body.get("old_password", "")
+    new_password = body.get("new_password", "")
+    confirm_password = body.get("confirm_password", "")
+    
+    # Validate passwords match FIRST
+    if new_password != confirm_password:
+        raise HTTPException(
+            status_code=400,
+            detail="New passwords do not match."
+        )
+    
+    # Validate new password strength BEFORE any other operations
+    errors = []
+    if len(new_password) < 8:
+        errors.append("Password must be at least 8 characters")
+    if not re.search(r'[A-Z]', new_password):
+        errors.append("Password must contain at least one uppercase letter")
+    if not re.search(r'[a-z]', new_password):
+        errors.append("Password must contain at least one lowercase letter")
+    if not re.search(r'[0-9]', new_password):
+        errors.append("Password must contain at least one number")
+    if not re.search(r'[!@#$%^&*(),.?":{}|<>]', new_password):
+        errors.append("Password must contain at least one special character")
+    
+    if errors:
+        raise HTTPException(
+            status_code=400,
+            detail="; ".join(errors)
+        )
+    
+    # Get the user record
+    result = await db.execute(
+        select(User).where(User.id == current_user.id)
+    )
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found.")
+    
+    # Verify current password
+    if not verify_password(old_password, user.password_hash):
+        raise HTTPException(
+            status_code=401,
+            detail="Current password is incorrect."
+        )
+    
+    # Hash and update password
+    user.password_hash = hash_password(new_password)
+    
+    # Revoke all other sessions for security (keep current)
+    repo = UserRepository(db)
+    await repo.revoke_all_refresh_tokens(
+        user_id=current_user.id,
+        revoked_at=datetime.now(UTC)
+    )
+    
+    await db.commit()
+    
+    return {
+        "message": "Password changed successfully.",
+        "user_id": str(user.id)
+    }
