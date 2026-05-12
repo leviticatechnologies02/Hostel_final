@@ -1,10 +1,9 @@
 from typing import Annotated
-from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 from sqlalchemy import select, or_, func, desc
 from sqlalchemy.ext.asyncio import AsyncSession
-from datetime import datetime, timezone, date
+from datetime import timezone, date
 
 from app.dependencies import CurrentUser, DBSession, require_roles
 from app.models.booking import Booking, BookingStatus
@@ -18,6 +17,11 @@ from app.schemas.mess_menu import MessMenuResponse
 from app.schemas.upload import PresignedUploadRequest
 from app.services.notice_service import NoticeService
 from app.services.mess_menu_service import MessMenuService
+from fastapi import APIRouter, Depends, HTTPException, status, Request
+import re
+from datetime import UTC, datetime
+from app.core.security import verify_password, hash_password
+from app.repositories.user_repository import UserRepository
 
 router = APIRouter()
 VisitorUser = Annotated[CurrentUser, Depends(require_roles("visitor", "student", "hostel_admin", "supervisor", "super_admin"))]
@@ -35,6 +39,12 @@ class VisitorProfileResponse(APIModel):
     profile_picture_url: str | None = None
     is_email_verified: bool
     is_phone_verified: bool
+    
+class VisitorChangePasswordRequest(BaseModel):
+    """Request to change visitor password"""
+    old_password: str = Field(min_length=8, max_length=128)
+    new_password: str = Field(min_length=8, max_length=128)
+    confirm_password: str = Field(min_length=8, max_length=128)
 
 
 class VisitorProfileUpdateRequest(BaseModel):
@@ -672,3 +682,81 @@ async def visitor_presigned_upload_url(
         file_name=payload.file_name,
         content_type=content_type,
     )
+    
+@router.post("/change-password")
+async def change_visitor_password(
+    payload: VisitorChangePasswordRequest,
+    current_user: VisitorUser,
+    db: DBSession
+):
+    """
+    **Change visitor password.**
+    
+    Requirements:
+    - Current password must be correct
+    - New password: min 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 special char
+    - New password and confirm password must match
+    
+    After successful change, all other sessions are revoked for security.
+    """
+    from app.models.user import User
+    from sqlalchemy import select
+    
+    # Validate passwords match
+    if payload.new_password != payload.confirm_password:
+        raise HTTPException(
+            status_code=400,
+            detail="New passwords do not match."
+        )
+    
+    # Get the user record
+    result = await db.execute(
+        select(User).where(User.id == current_user.id)
+    )
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found.")
+    
+    # Verify current password
+    if not verify_password(payload.old_password, user.password_hash):
+        raise HTTPException(
+            status_code=401,
+            detail="Current password is incorrect."
+        )
+    
+    # Validate new password strength
+    errors = []
+    if len(payload.new_password) < 8:
+        errors.append("Password must be at least 8 characters")
+    if not re.search(r'[A-Z]', payload.new_password):
+        errors.append("Password must contain at least one uppercase letter")
+    if not re.search(r'[a-z]', payload.new_password):
+        errors.append("Password must contain at least one lowercase letter")
+    if not re.search(r'[0-9]', payload.new_password):
+        errors.append("Password must contain at least one number")
+    if not re.search(r'[!@#$%^&*(),.?":{}|<>]', payload.new_password):
+        errors.append("Password must contain at least one special character")
+    
+    if errors:
+        raise HTTPException(
+            status_code=400,
+            detail="; ".join(errors)
+        )
+    
+    # Hash and update password
+    user.password_hash = hash_password(payload.new_password)
+    
+    # Revoke all other sessions for security (keep current)
+    repo = UserRepository(db)
+    await repo.revoke_all_refresh_tokens(
+        user_id=current_user.id,
+        revoked_at=datetime.now(UTC)
+    )
+    
+    await db.commit()
+    
+    return {
+        "message": "Password changed successfully.",
+        "user_id": str(user.id)
+    }

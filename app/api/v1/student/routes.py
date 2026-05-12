@@ -2,7 +2,6 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
 from starlette.responses import Response
 from sqlalchemy import or_, select
 from app.schemas.notice import NoticeResponse, NoticeListResponse  
@@ -30,6 +29,12 @@ from app.models.room import Room, Bed
 from app.models.booking import Booking
 from app.schemas.student import StudentResponse
 from pydantic import BaseModel as PydanticBaseModel
+from fastapi import APIRouter, Depends, HTTPException, status, Request
+from pydantic import BaseModel, Field
+import re
+from datetime import UTC, datetime
+from app.core.security import verify_password, hash_password
+from app.repositories.user_repository import UserRepository
 
 class StudentProfileUpdateRequest(PydanticBaseModel):
     full_name: str | None = None
@@ -44,7 +49,13 @@ class LeaveRequestCreate(PydanticBaseModel):
 
 router = APIRouter()
 StudentUser = Annotated[CurrentUser, Depends(require_roles("student"))]
-AdminUser = Annotated[CurrentUser, Depends(require_roles("hostel_admin", "super_admin"))]  # ← ADD THIS
+AdminUser = Annotated[CurrentUser, Depends(require_roles("hostel_admin", "super_admin"))]  
+
+class StudentChangePasswordRequest(BaseModel):
+    """Request to change student password"""
+    old_password: str = Field(min_length=8, max_length=128)
+    new_password: str = Field(min_length=8, max_length=128)
+    confirm_password: str = Field(min_length=8, max_length=128)
 
 
 # ==================== PROFILE ENDPOINTS ====================
@@ -519,3 +530,80 @@ async def get_student_by_admin(
 
 # ==================== PYDANTIC MODELS (at bottom of file) ====================
 
+@router.post("/change-password")
+async def change_student_password(
+    payload: StudentChangePasswordRequest,
+    current_user: StudentUser,
+    db: DBSession
+):
+    """
+    **Change student password.**
+    
+    Requirements:
+    - Current password must be correct
+    - New password: min 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 special char
+    - New password and confirm password must match
+    
+    After successful change, all other sessions are revoked for security.
+    """
+    from app.models.user import User
+    from sqlalchemy import select
+    
+    # Validate passwords match
+    if payload.new_password != payload.confirm_password:
+        raise HTTPException(
+            status_code=400,
+            detail="New passwords do not match."
+        )
+    
+    # Get the user record
+    result = await db.execute(
+        select(User).where(User.id == current_user.id)
+    )
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found.")
+    
+    # Verify current password
+    if not verify_password(payload.old_password, user.password_hash):
+        raise HTTPException(
+            status_code=401,
+            detail="Current password is incorrect."
+        )
+    
+    # Validate new password strength
+    errors = []
+    if len(payload.new_password) < 8:
+        errors.append("Password must be at least 8 characters")
+    if not re.search(r'[A-Z]', payload.new_password):
+        errors.append("Password must contain at least one uppercase letter")
+    if not re.search(r'[a-z]', payload.new_password):
+        errors.append("Password must contain at least one lowercase letter")
+    if not re.search(r'[0-9]', payload.new_password):
+        errors.append("Password must contain at least one number")
+    if not re.search(r'[!@#$%^&*(),.?":{}|<>]', payload.new_password):
+        errors.append("Password must contain at least one special character")
+    
+    if errors:
+        raise HTTPException(
+            status_code=400,
+            detail="; ".join(errors)
+        )
+    
+    # Hash and update password
+    user.password_hash = hash_password(payload.new_password)
+    
+    # Revoke all other sessions for security (keep current)
+    repo = UserRepository(db)
+    await repo.revoke_all_refresh_tokens(
+        user_id=current_user.id,
+        revoked_at=datetime.now(UTC)
+    )
+    
+    await db.commit()
+    
+    return {
+        "message": "Password changed successfully.",
+        "user_id": str(user.id)
+    }
