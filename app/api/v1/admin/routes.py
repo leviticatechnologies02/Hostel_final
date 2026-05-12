@@ -12,7 +12,6 @@ from app.schemas.admin import (
     DirectStudentAddRequest,
     DirectStudentAddResponse,
 )
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status  
 from app.schemas.complaint import ComplaintUpdateRequest
 from app.schemas.hostel import HostelDetailResponse, HostelUpdateRequest, HostelListItem
 from app.schemas.room import (
@@ -59,7 +58,7 @@ from pydantic import ValidationError as PydanticValidationError
 
 
 router = APIRouter()
-AdminUser = Annotated[CurrentUser, Depends(require_roles("hostel_admin"))]
+AdminUser = Annotated[CurrentUser, Depends(require_roles("hostel_admin", "super_admin"))]
 
 
 class AdminProfileResponse(BaseModel):
@@ -89,7 +88,54 @@ class AdminChangePasswordRequest(BaseModel):
     new_password: str = Field(min_length=8, max_length=128)
     confirm_password: str = Field(min_length=8, max_length=128)
 
-
+def validate_phone_number(phone: str) -> str:
+    """Validate and clean phone number"""
+    import re
+    
+    if not phone:
+        raise HTTPException(status_code=400, detail="Phone number is required.")
+    
+    # Remove whitespace
+    phone = phone.strip()
+    
+    # Remove common prefixes and special characters
+    cleaned = re.sub(r'[^0-9+]', '', phone)
+    
+    # Handle +91 prefix
+    if cleaned.startswith('+91'):
+        cleaned = cleaned[3:]
+    elif cleaned.startswith('91'):
+        cleaned = cleaned[2:]
+    elif cleaned.startswith('0'):
+        cleaned = cleaned[1:]
+    
+    # Remove any remaining non-digits
+    digits_only = re.sub(r'[^0-9]', '', cleaned)
+    
+    # Check length
+    if len(digits_only) < 10:
+        raise HTTPException(
+            status_code=400,
+            detail="Phone number must have at least 10 digits."
+        )
+    if len(digits_only) > 10:
+        # If more than 10 digits, take last 10 if it's a valid Indian number
+        if len(digits_only) > 10 and digits_only[-10] in ['6', '7', '8', '9']:
+            digits_only = digits_only[-10:]
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid phone number format. Please provide a 10-digit Indian number."
+            )
+    
+    # Check first digit for Indian numbers
+    if digits_only[0] not in ['6', '7', '8', '9']:
+        raise HTTPException(
+            status_code=400,
+            detail="Indian phone number must start with 6, 7, 8, or 9."
+        )
+    
+    return digits_only
 
 def handle_validation_error(e: ValueError) -> None:
     """Convert Pydantic validation errors to HTTP 400"""
@@ -1454,7 +1500,7 @@ async def get_admin_profile(
 
 @router.patch("/profile", response_model=AdminProfileResponse)
 async def update_admin_profile(
-    payload: AdminProfileUpdateRequest,
+    request: Request,  # Change to use Request to get raw body
     current_user: AdminUser,
     db: DBSession,
 ):
@@ -1467,6 +1513,55 @@ async def update_admin_profile(
     from app.models.user import User
     from sqlalchemy import select
     
+    # Parse body
+    try:
+        body = await request.json()
+    except:
+        body = {}
+    
+    # If empty body, just return current profile
+    if not body:
+        result = await db.execute(
+            select(User).where(User.id == current_user.id)
+        )
+        user = result.scalar_one_or_none()
+        
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found.")
+        
+        # Get assigned hostels for response
+        from app.models.hostel import AdminHostelMapping, Hostel
+        hostel_result = await db.execute(
+            select(Hostel.id, Hostel.name, Hostel.city, Hostel.status, AdminHostelMapping.is_primary)
+            .join(AdminHostelMapping, AdminHostelMapping.hostel_id == Hostel.id)
+            .where(AdminHostelMapping.admin_id == current_user.id)
+        )
+        assigned_hostels = [
+            {
+                "id": str(row.id),
+                "name": row.name,
+                "city": row.city,
+                "status": row.status.value if hasattr(row.status, "value") else str(row.status),
+                "is_primary": row.is_primary
+            }
+            for row in hostel_result.all()
+        ]
+        
+        return {
+            "id": str(user.id),
+            "email": user.email,
+            "phone": user.phone,
+            "full_name": user.full_name,
+            "role": user.role.value if hasattr(user.role, "value") else str(user.role),
+            "profile_picture_url": user.profile_picture_url,
+            "is_active": user.is_active,
+            "is_email_verified": user.is_email_verified,
+            "is_phone_verified": user.is_phone_verified,
+            "assigned_hostels": assigned_hostels,
+            "created_at": user.created_at,
+            "updated_at": user.updated_at,
+        }
+    
     result = await db.execute(
         select(User).where(User.id == current_user.id)
     )
@@ -1476,15 +1571,36 @@ async def update_admin_profile(
         raise HTTPException(status_code=404, detail="User not found.")
     
     # Update full name
-    if payload.full_name is not None:
-        user.full_name = payload.full_name
+    if "full_name" in body and body["full_name"] is not None:
+        user.full_name = body["full_name"]
     
     # Update phone (check uniqueness)
-    if payload.phone is not None:
+    if "phone" in body and body["phone"] is not None:
+        phone = body["phone"]
+        
+        # Validate phone format
+        import re
+        # Remove any non-digit characters for validation
+        digits_only = re.sub(r'[^0-9]', '', phone)
+        
+        # Check length - should be 10-13 digits after cleaning
+        if len(digits_only) < 10 or len(digits_only) > 13:
+            raise HTTPException(
+                status_code=400,
+                detail="Phone number must have between 10 and 13 digits."
+            )
+        
+        # For Indian numbers, first digit should be 6-9 if exactly 10 digits
+        if len(digits_only) == 10 and digits_only[0] not in ['6', '7', '8', '9']:
+            raise HTTPException(
+                status_code=400,
+                detail="Indian phone number must start with 6, 7, 8, or 9."
+            )
+        
         # Check if phone already taken by another user
         existing = await db.execute(
             select(User).where(
-                User.phone == payload.phone,
+                User.phone == phone,
                 User.id != current_user.id
             )
         )
@@ -1493,11 +1609,11 @@ async def update_admin_profile(
                 status_code=409,
                 detail="Phone number already registered by another user."
             )
-        user.phone = payload.phone
+        user.phone = phone
     
     # Update profile picture
-    if payload.profile_picture_url is not None:
-        user.profile_picture_url = payload.profile_picture_url
+    if "profile_picture_url" in body and body["profile_picture_url"] is not None:
+        user.profile_picture_url = body["profile_picture_url"]
     
     await db.commit()
     await db.refresh(user)
@@ -1534,7 +1650,6 @@ async def update_admin_profile(
         "created_at": user.created_at,
         "updated_at": user.updated_at,
     }
-
 
 @router.post("/change-password")
 async def change_admin_password(
