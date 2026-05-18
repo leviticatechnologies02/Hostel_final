@@ -155,8 +155,22 @@ class SuperAdminService:
         await self.session.commit()
         await self.session.refresh(admin)
         return admin
-        
+            
     async def assign_hostels(self, actor_id: str, admin_id: str, payload: AssignHostelsRequest):
+        """Assign hostels to an admin - with plan limit enforcement."""
+        from app.models.operations import Subscription
+        from app.models.plan import Plan
+
+        # Get admin's active subscription plan
+        sub_result = await self.session.execute(
+            select(Subscription)
+            .join(Plan, Plan.id == Subscription.plan_id)
+            .where(
+                Subscription.status == "active",
+                # You'll need to link admin to subscription via hostel
+            )
+        )
+
         """Assign hostels to an admin - replaces existing assignments."""
         admin = await self.repository.get_admin_by_id(admin_id)
         if admin is None:

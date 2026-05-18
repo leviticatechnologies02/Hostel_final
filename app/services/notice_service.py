@@ -337,6 +337,7 @@ class NoticeService:
         """List notices for supervisor (their assigned hostel + platform-wide)"""
         # Get supervisor's hostel IDs from the mapping table
         from app.models.hostel import SupervisorHostelMapping
+        
         result = await self.session.execute(
             select(SupervisorHostelMapping.hostel_id).where(
                 SupervisorHostelMapping.supervisor_id == supervisor_id
@@ -347,6 +348,8 @@ class NoticeService:
         if not hostel_ids:
             return {"items": [], "total": 0, "page": page, "per_page": per_page}
         
+        # Build query
+        from app.models.operations import Notice
         query = select(Notice).where(
             or_(
                 Notice.hostel_id.in_(hostel_ids),
@@ -369,6 +372,7 @@ class NoticeService:
         result = await self.session.execute(query)
         notices = list(result.scalars().all())
         
+        # Convert to dict - FIX: serialize datetime fields
         items = []
         for notice in notices:
             items.append({
@@ -379,11 +383,11 @@ class NoticeService:
                 "notice_type": notice.notice_type,
                 "priority": notice.priority,
                 "is_published": notice.is_published,
-                "publish_at": notice.publish_at,
-                "expires_at": notice.expires_at,
+                "publish_at": notice.publish_at.isoformat() if notice.publish_at else None,
+                "expires_at": notice.expires_at.isoformat() if notice.expires_at else None,
                 "created_by": str(notice.created_by),
-                "created_at": notice.created_at,
-                "updated_at": notice.updated_at,
+                "created_at": notice.created_at.isoformat(),
+                "updated_at": notice.updated_at.isoformat(),
                 "read_count": 0,
                 "total_students": 0,
             })
@@ -393,8 +397,7 @@ class NoticeService:
             "total": total,
             "page": page,
             "per_page": per_page,
-        }
-    
+        }    
     async def create_supervisor_notice(
         self,
         *,

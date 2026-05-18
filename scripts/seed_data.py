@@ -1,14 +1,13 @@
 """
 StayEase - Complete Seed Data Script
-Run: python -m scripts.seed_data  (from hostel-management-api/)
+Run: python -m scripts.seed_data --clean (from hostel-management-api/)
 Populates: users, hostels, rooms, beds, bookings, students, payments,
-           mess menus (full 7-day × 4-meal), notices, complaints,
-           attendance, maintenance, reviews, subscriptions, images.
+           mess menus, notices, complaints, attendance, maintenance, reviews.
 """
 import asyncio
 import uuid
 from datetime import UTC, date, datetime, timedelta, time
-
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -17,7 +16,7 @@ from app.core.database import Base
 from app.core.security import hash_password
 from app.models.booking import (
     BedStay, BedStayStatus, Booking, BookingMode,
-    BookingStatus, BookingStatusHistory, Inquiry,
+    BookingStatus, BookingStatusHistory, Inquiry, WaitlistEntry, WaitlistStatus,
 )
 from app.models.hostel import (
     AdminHostelMapping, Hostel, HostelAmenity,
@@ -27,12 +26,6 @@ from app.models.operations import (
     AttendanceRecord, Complaint, ComplaintComment,
     MaintenanceRequest, MessMenu, MessMenuItem,
     Notice, Review, Subscription,
-)
-
-# Import employee data from separate file (63 Levitica employees)
-from scripts.employee_data import (
-    EMPLOYEE_DATA, STUDENT_NAMES, EMPLOYEE_CODE_MAP,
-    emp_phone as _emp_phone,
 )
 from app.models.payment import Payment
 from app.models.room import Bed, BedStatus, Room, RoomType
@@ -71,7 +64,6 @@ HOSTEL_IMAGES = {
 # Full 7-day × 4-meal mess menu data (realistic Indian hostel food)
 # ---------------------------------------------------------------------------
 MESS_MENU = [
-    # (day, meal_type, item_name, is_veg, special_note)
     # Monday
     ("Monday", "breakfast", "Idli Sambar with Coconut Chutney", True, None),
     ("Monday", "lunch", "Steamed Rice, Dal Tadka, Aloo Gobi, Papad", True, None),
@@ -122,9 +114,7 @@ HOSTELS_CONFIG = [
         "description": (
             "Green Valley Boys Hostel is a premium accommodation for male students and "
             "working professionals in the heart of Hyderabad. Surrounded by lush greenery, "
-            "we offer a peaceful environment with all modern amenities. Our 24/7 security, "
-            "high-speed WiFi, and nutritious mess food make us the top choice for students "
-            "from JNTU, Osmania University, and nearby IT companies."
+            "we offer a peaceful environment with all modern amenities."
         ),
         "address_line1": "Plot 45, Green Valley Road, Madhapur",
         "address_line2": "Near Hitech City Metro Station",
@@ -138,9 +128,7 @@ HOSTELS_CONFIG = [
             "1. Visitors allowed only in common areas between 9 AM - 8 PM.\n"
             "2. No smoking or alcohol on premises.\n"
             "3. Lights out by 11 PM on weekdays.\n"
-            "4. Mess timings: Breakfast 7-9 AM, Lunch 12-2 PM, Snacks 5-6 PM, Dinner 8-10 PM.\n"
-            "5. Laundry service available on Sundays.\n"
-            "6. ID proof mandatory at entry for all visitors."
+            "4. Mess timings: Breakfast 7-9 AM, Lunch 12-2 PM, Dinner 8-10 PM."
         ),
         "is_featured": True,
         "amenities": [
@@ -148,17 +136,15 @@ HOSTELS_CONFIG = [
             ("Laundry", "facilities"), ("Gym", "facilities"),
             ("CCTV", "safety"), ("Security Guard", "safety"),
             ("Parking", "facilities"), ("Power Backup", "utilities"),
-            ("RO Water", "utilities"), ("Housekeeping", "services"),
         ],
         "rooms": [
-            {"number": "101", "floor": 1, "type": "SINGLE", "beds": 1, "daily": 900, "monthly": 8500, "deposit": 8500, "dim": "12x10 ft"},
-            {"number": "102", "floor": 1, "type": "DOUBLE", "beds": 2, "daily": 700, "monthly": 6500, "deposit": 6500, "dim": "14x12 ft"},
-            {"number": "103", "floor": 1, "type": "DOUBLE", "beds": 2, "daily": 700, "monthly": 6500, "deposit": 6500, "dim": "14x12 ft"},
-            {"number": "201", "floor": 2, "type": "TRIPLE", "beds": 3, "daily": 600, "monthly": 5500, "deposit": 5500, "dim": "16x14 ft"},
-            {"number": "202", "floor": 2, "type": "TRIPLE", "beds": 3, "daily": 600, "monthly": 5500, "deposit": 5500, "dim": "16x14 ft"},
-            {"number": "203", "floor": 2, "type": "DORMITORY", "beds": 6, "daily": 400, "monthly": 3500, "deposit": 3500, "dim": "20x18 ft"},
-            {"number": "301", "floor": 3, "type": "SINGLE", "beds": 1, "daily": 950, "monthly": 9000, "deposit": 9000, "dim": "12x10 ft"},
-            {"number": "302", "floor": 3, "type": "DOUBLE", "beds": 2, "daily": 750, "monthly": 7000, "deposit": 7000, "dim": "14x12 ft"},
+            {"number": "101", "floor": 1, "type": "SINGLE", "beds": 1, "daily": 900, "monthly": 8500, "deposit": 8500},
+            {"number": "102", "floor": 1, "type": "DOUBLE", "beds": 2, "daily": 700, "monthly": 6500, "deposit": 6500},
+            {"number": "103", "floor": 1, "type": "DOUBLE", "beds": 2, "daily": 700, "monthly": 6500, "deposit": 6500},
+            {"number": "201", "floor": 2, "type": "TRIPLE", "beds": 3, "daily": 600, "monthly": 5500, "deposit": 5500},
+            {"number": "202", "floor": 2, "type": "TRIPLE", "beds": 3, "daily": 600, "monthly": 5500, "deposit": 5500},
+            {"number": "203", "floor": 2, "type": "DORMITORY", "beds": 6, "daily": 400, "monthly": 3500, "deposit": 3500},
+            {"number": "301", "floor": 3, "type": "SINGLE", "beds": 1, "daily": 950, "monthly": 9000, "deposit": 9000},
         ],
     },
     {
@@ -170,9 +156,7 @@ HOSTELS_CONFIG = [
         "description": (
             "Pearl Girls Hostel is a safe, comfortable, and well-managed accommodation "
             "exclusively for women in Bangalore. Located in Koramangala, we are minutes "
-            "away from major IT parks, colleges, and shopping centers. Our all-female staff, "
-            "biometric entry, and CCTV surveillance ensure maximum safety. We offer "
-            "home-cooked meals, a reading room, and a rooftop garden."
+            "away from major IT parks and colleges."
         ),
         "address_line1": "12/3, 5th Block, Koramangala",
         "address_line2": "Near Forum Mall, Bangalore",
@@ -186,26 +170,22 @@ HOSTELS_CONFIG = [
             "1. Male visitors strictly not allowed beyond reception.\n"
             "2. Gate closes at 10 PM. Late entry requires prior permission.\n"
             "3. No cooking in rooms. Use common kitchen only.\n"
-            "4. Mess timings: Breakfast 7-9 AM, Lunch 12-2 PM, Snacks 5-6 PM, Dinner 8-10 PM.\n"
-            "5. Maintain cleanliness in common areas.\n"
-            "6. Report any issues to warden immediately."
+            "4. Mess timings: Breakfast 7-9 AM, Lunch 12-2 PM, Dinner 8-10 PM."
         ),
         "is_featured": True,
         "amenities": [
             ("WiFi", "connectivity"), ("Reading Room", "facilities"),
             ("Laundry", "facilities"), ("Rooftop Garden", "recreation"),
             ("CCTV", "safety"), ("Biometric Entry", "safety"),
-            ("Power Backup", "utilities"), ("RO Water", "utilities"),
-            ("Housekeeping", "services"), ("Wardrobe", "furniture"),
+            ("Power Backup", "utilities"), ("Housekeeping", "services"),
         ],
         "rooms": [
-            {"number": "A101", "floor": 1, "type": "SINGLE", "beds": 1, "daily": 1000, "monthly": 9500, "deposit": 9500, "dim": "12x10 ft"},
-            {"number": "A102", "floor": 1, "type": "DOUBLE", "beds": 2, "daily": 800, "monthly": 7500, "deposit": 7500, "dim": "14x12 ft"},
-            {"number": "A103", "floor": 1, "type": "DOUBLE", "beds": 2, "daily": 800, "monthly": 7500, "deposit": 7500, "dim": "14x12 ft"},
-            {"number": "B201", "floor": 2, "type": "TRIPLE", "beds": 3, "daily": 650, "monthly": 6000, "deposit": 6000, "dim": "16x14 ft"},
-            {"number": "B202", "floor": 2, "type": "TRIPLE", "beds": 3, "daily": 650, "monthly": 6000, "deposit": 6000, "dim": "16x14 ft"},
-            {"number": "C301", "floor": 3, "type": "SINGLE", "beds": 1, "daily": 1050, "monthly": 10000, "deposit": 10000, "dim": "12x10 ft"},
-            {"number": "C302", "floor": 3, "type": "DORMITORY", "beds": 4, "daily": 450, "monthly": 4000, "deposit": 4000, "dim": "18x16 ft"},
+            {"number": "A101", "floor": 1, "type": "SINGLE", "beds": 1, "daily": 1000, "monthly": 9500, "deposit": 9500},
+            {"number": "A102", "floor": 1, "type": "DOUBLE", "beds": 2, "daily": 800, "monthly": 7500, "deposit": 7500},
+            {"number": "A103", "floor": 1, "type": "DOUBLE", "beds": 2, "daily": 800, "monthly": 7500, "deposit": 7500},
+            {"number": "B201", "floor": 2, "type": "TRIPLE", "beds": 3, "daily": 650, "monthly": 6000, "deposit": 6000},
+            {"number": "B202", "floor": 2, "type": "TRIPLE", "beds": 3, "daily": 650, "monthly": 6000, "deposit": 6000},
+            {"number": "C301", "floor": 3, "type": "SINGLE", "beds": 1, "daily": 1050, "monthly": 10000, "deposit": 10000},
         ],
     },
     {
@@ -217,9 +197,7 @@ HOSTELS_CONFIG = [
         "description": (
             "Sunrise Co-ed Hostel is a modern, vibrant accommodation for students and "
             "young professionals in Pune. Located in Kothrud, we offer separate floors "
-            "for male and female residents with shared common areas. Our hostel features "
-            "a fully equipped gym, indoor games room, and a rooftop terrace. Perfect for "
-            "students from Pune University, COEP, and nearby IT companies."
+            "for male and female residents."
         ),
         "address_line1": "Survey No. 78, Kothrud",
         "address_line2": "Near Kothrud Bus Stand, Pune",
@@ -233,26 +211,22 @@ HOSTELS_CONFIG = [
             "1. Separate floors for male and female residents.\n"
             "2. Common areas accessible to all residents.\n"
             "3. No alcohol or drugs on premises.\n"
-            "4. Mess timings: Breakfast 7-9 AM, Lunch 12-2 PM, Snacks 5-6 PM, Dinner 8-10 PM.\n"
-            "5. Gym available 6 AM - 10 PM.\n"
-            "6. Guests must register at reception."
+            "4. Mess timings: Breakfast 7-9 AM, Lunch 12-2 PM, Dinner 8-10 PM."
         ),
         "is_featured": True,
         "amenities": [
             ("WiFi", "connectivity"), ("Gym", "recreation"),
             ("Indoor Games", "recreation"), ("Rooftop Terrace", "recreation"),
             ("Laundry", "facilities"), ("CCTV", "safety"),
-            ("Power Backup", "utilities"), ("RO Water", "utilities"),
-            ("Cafeteria", "food"), ("Study Hall", "facilities"),
+            ("Power Backup", "utilities"), ("Cafeteria", "food"),
         ],
         "rooms": [
-            {"number": "M101", "floor": 1, "type": "SINGLE", "beds": 1, "daily": 850, "monthly": 8000, "deposit": 8000, "dim": "12x10 ft"},
-            {"number": "M102", "floor": 1, "type": "DOUBLE", "beds": 2, "daily": 650, "monthly": 6000, "deposit": 6000, "dim": "14x12 ft"},
-            {"number": "M201", "floor": 2, "type": "TRIPLE", "beds": 3, "daily": 550, "monthly": 5000, "deposit": 5000, "dim": "16x14 ft"},
-            {"number": "M202", "floor": 2, "type": "DORMITORY", "beds": 6, "daily": 380, "monthly": 3200, "deposit": 3200, "dim": "20x18 ft"},
-            {"number": "F301", "floor": 3, "type": "SINGLE", "beds": 1, "daily": 900, "monthly": 8500, "deposit": 8500, "dim": "12x10 ft"},
-            {"number": "F302", "floor": 3, "type": "DOUBLE", "beds": 2, "daily": 700, "monthly": 6500, "deposit": 6500, "dim": "14x12 ft"},
-            {"number": "F303", "floor": 3, "type": "TRIPLE", "beds": 3, "daily": 580, "monthly": 5200, "deposit": 5200, "dim": "16x14 ft"},
+            {"number": "M101", "floor": 1, "type": "SINGLE", "beds": 1, "daily": 850, "monthly": 8000, "deposit": 8000},
+            {"number": "M102", "floor": 1, "type": "DOUBLE", "beds": 2, "daily": 650, "monthly": 6000, "deposit": 6000},
+            {"number": "M201", "floor": 2, "type": "TRIPLE", "beds": 3, "daily": 550, "monthly": 5000, "deposit": 5000},
+            {"number": "M202", "floor": 2, "type": "DORMITORY", "beds": 6, "daily": 380, "monthly": 3200, "deposit": 3200},
+            {"number": "F301", "floor": 3, "type": "SINGLE", "beds": 1, "daily": 900, "monthly": 8500, "deposit": 8500},
+            {"number": "F302", "floor": 3, "type": "DOUBLE", "beds": 2, "daily": 700, "monthly": 6500, "deposit": 6500},
         ],
     },
     {
@@ -264,9 +238,7 @@ HOSTELS_CONFIG = [
         "description": (
             "Metro Stay Hostel is a premium co-ed hostel in the heart of Mumbai, "
             "offering unmatched connectivity and comfort. Located in Andheri West, "
-            "we are a 5-minute walk from the metro station and close to BKC, "
-            "Bandra, and major corporate offices. Our hostel offers AC rooms, "
-            "a fully equipped kitchen, and a vibrant community of young professionals."
+            "we are a 5-minute walk from the metro station."
         ),
         "address_line1": "14, Versova Road, Andheri West",
         "address_line2": "Near Andheri Metro Station, Mumbai",
@@ -280,103 +252,94 @@ HOSTELS_CONFIG = [
             "1. AC rooms — do not tamper with AC settings.\n"
             "2. Gate closes at 11 PM. Late entry via security intercom.\n"
             "3. No cooking in rooms. Use common kitchen.\n"
-            "4. Mess timings: Breakfast 7-9 AM, Lunch 12-2 PM, Snacks 5-6 PM, Dinner 8-10 PM.\n"
-            "5. Maintain silence after 11 PM.\n"
-            "6. Parking available for 2-wheelers only."
+            "4. Mess timings: Breakfast 7-9 AM, Lunch 12-2 PM, Dinner 8-10 PM."
         ),
         "is_featured": False,
         "amenities": [
             ("WiFi", "connectivity"), ("AC Rooms", "comfort"),
             ("Common Kitchen", "facilities"), ("Laundry", "facilities"),
             ("CCTV", "safety"), ("Security Guard", "safety"),
-            ("Power Backup", "utilities"), ("RO Water", "utilities"),
-            ("Elevator", "facilities"), ("Parking", "facilities"),
+            ("Power Backup", "utilities"), ("Elevator", "facilities"),
         ],
         "rooms": [
-            {"number": "101", "floor": 1, "type": "SINGLE", "beds": 1, "daily": 1200, "monthly": 12000, "deposit": 12000, "dim": "12x10 ft"},
-            {"number": "102", "floor": 1, "type": "DOUBLE", "beds": 2, "daily": 950, "monthly": 9000, "deposit": 9000, "dim": "14x12 ft"},
-            {"number": "201", "floor": 2, "type": "SINGLE", "beds": 1, "daily": 1300, "monthly": 13000, "deposit": 13000, "dim": "12x10 ft"},
-            {"number": "202", "floor": 2, "type": "DOUBLE", "beds": 2, "daily": 1000, "monthly": 9500, "deposit": 9500, "dim": "14x12 ft"},
-            {"number": "203", "floor": 2, "type": "TRIPLE", "beds": 3, "daily": 800, "monthly": 7500, "deposit": 7500, "dim": "16x14 ft"},
-            {"number": "301", "floor": 3, "type": "DORMITORY", "beds": 5, "daily": 550, "monthly": 5000, "deposit": 5000, "dim": "20x18 ft"},
+            {"number": "101", "floor": 1, "type": "SINGLE", "beds": 1, "daily": 1200, "monthly": 12000, "deposit": 12000},
+            {"number": "102", "floor": 1, "type": "DOUBLE", "beds": 2, "daily": 950, "monthly": 9000, "deposit": 9000},
+            {"number": "201", "floor": 2, "type": "SINGLE", "beds": 1, "daily": 1300, "monthly": 13000, "deposit": 13000},
+            {"number": "202", "floor": 2, "type": "DOUBLE", "beds": 2, "daily": 1000, "monthly": 9500, "deposit": 9500},
+            {"number": "203", "floor": 2, "type": "TRIPLE", "beds": 3, "daily": 800, "monthly": 7500, "deposit": 7500},
+            {"number": "301", "floor": 3, "type": "DORMITORY", "beds": 5, "daily": 550, "monthly": 5000, "deposit": 5000},
         ],
     },
 ]
 
 # ---------------------------------------------------------------------------
-# Student / visitor names
+# Student / visitor names (63 students from employee data - single definition)
 # ---------------------------------------------------------------------------
-# ── Generated from Employee_Register.xlsx (Levitica Technologies) ──────────
-# Format: (full_name, email_prefix)
-# Employee codes LEV001–LEV128 mapped to student numbers STU-LEV001 etc.
-# Team leads become supervisors; remaining employees become students.
 EMPLOYEE_DATA = [
-    # (employee_code, full_name, team_lead)
-    ("LEV029", "Abhilash Gurrampally",                  "Mani Kiran Kopanathi"),
-    ("LEV039", "Anusha Enigalla",                        "Durgaprasad Medipudi"),
-    ("LEV122", "Aravelly Tharun",                        "Anusha Enigalla"),
-    ("LEV047", "Ashok Kota",                             "Sameer Shaik"),
-    ("LEV121", "Baluguri Ashritha Rao",                  "Durgaprasad Medipudi"),
-    ("LEV116", "Bhargava Sai Kolli",                     "Kallamadi Kranti Kumar Reddy"),
-    ("LEV027", "Bogala Chandramouli",                    "Durgaprasad Medipudi"),
-    ("LEV023", "Burri Gowtham",                          "Mani Kiran Kopanathi"),
-    ("LEV001", "Chandu Thota",                           "Durgaprasad Medipudi"),
-    ("LEV038", "Cheekati Abhinaya",                      "Durgaprasad Medipudi"),
-    ("LEV014", "Chodisetti Sri Rama Sai",                "Mani Kiran Kopanathi"),
-    ("LEV123", "Dhanikela Brahmam",                      "Anusha Enigalla"),
-    ("LEV012", "Dheeraj Krishna Jakkula",                "Mani Kiran Kopanathi"),
-    ("LEV028", "Dorasala Nagendra Reddy",                "Mani Kiran Kopanathi"),
-    ("LEV017", "Dubbaka Bharath",                        "Sameer Shaik"),
-    ("LEV026", "Durga Sai Vara Prasad Chandragiri",      "Durgaprasad Medipudi"),
-    ("LEV031", "Gorle Leela Sai Kumar",                  "Durgaprasad Medipudi"),
-    ("LEV127", "Gubba Vasini",                           "Anusha Enigalla"),
-    ("LEV005", "Gurajapu Pavani",                        "Nagendra Uggirala"),
-    ("LEV118", "Hari Charan Teja Gudapati",              "Anusha Enigalla"),
-    ("LEV050", "Harsha Vardhan Naidu Dasireddy",         "Kallamadi Kranti Kumar Reddy"),
-    ("LEV044", "Hemant Tukaram Pawade",                  "Mani Kiran Kopanathi"),
-    ("LEV008", "Hruthik Venkata Sai Ganesh Jamanu",      "Chandu Thota"),
-    ("LEV033", "Jagadeesh Bedolla",                      "Sameer Shaik"),
-    ("LEV128", "Jothi Lakshmi A",                        "Anusha Enigalla"),
-    ("LEV013", "Kallamadi Kowsik Reddy",                 "Durgaprasad Medipudi"),
-    ("LEV011", "Kallamadi Kranti Kumar Reddy",           "Durgaprasad Medipudi"),
-    ("LEV004", "Kallamadi Keerthi",                      "Nagendra Uggirala"),
-    ("LEV003", "Kandepuneni Swetha Naga Durga",          "Chandu Thota"),
-    ("LEV036", "Kasarapu Rajeswar Reddy",                "Sameer Shaik"),
-    ("LEV019", "Keerthi Ranjani Maddala",                "Sameer Shaik"),
-    ("LEV032", "Khuswanth Rao Jadav",                    "Sameer Shaik"),
-    ("LEV034", "Kishore Tiruveedhula",                   "Mani Kiran Kopanathi"),
-    ("LEV046", "Kondareddy Revathi",                     "Sameer Shaik"),
-    ("LEV126", "Korada Kavya",                           "Anusha Enigalla"),
-    ("LEV035", "Kothapalli Sai Avinash Varma",           "Mani Kiran Kopanathi"),
-    ("LEV048", "Lokeshwar Reddy Kondappagari",           "Kallamadi Kranti Kumar Reddy"),
-    ("LEV010", "Mani Kiran Kopanathi",                   "Durgaprasad Medipudi"),
-    ("LEV041", "Manikanta Nedunuri",                     "Mani Kiran Kopanathi"),
-    ("LEV120", "Medipudi Durgaprasad",                   None),
-    ("LEV002", "Minal Devidas Mahajan",                  "Durgaprasad Medipudi"),
-    ("LEV041", "Mohammad Aslam Yakub Khan",              "Durgaprasad Medipudi"),
-    ("LEV042", "Muniganti Sai Sumiran",                  "Sameer Shaik"),
+    ("LEV029", "Abhilash Gurrampally", "Mani Kiran Kopanathi"),
+    ("LEV039", "Anusha Enigalla", "Durgaprasad Medipudi"),
+    ("LEV122", "Aravelly Tharun", "Anusha Enigalla"),
+    ("LEV047", "Ashok Kota", "Sameer Shaik"),
+    ("LEV121", "Baluguri Ashritha Rao", "Durgaprasad Medipudi"),
+    ("LEV116", "Bhargava Sai Kolli", "Kallamadi Kranti Kumar Reddy"),
+    ("LEV027", "Bogala Chandramouli", "Durgaprasad Medipudi"),
+    ("LEV023", "Burri Gowtham", "Mani Kiran Kopanathi"),
+    ("LEV001", "Chandu Thota", "Durgaprasad Medipudi"),
+    ("LEV038", "Cheekati Abhinaya", "Durgaprasad Medipudi"),
+    ("LEV014", "Chodisetti Sri Rama Sai", "Mani Kiran Kopanathi"),
+    ("LEV123", "Dhanikela Brahmam", "Anusha Enigalla"),
+    ("LEV012", "Dheeraj Krishna Jakkula", "Mani Kiran Kopanathi"),
+    ("LEV028", "Dorasala Nagendra Reddy", "Mani Kiran Kopanathi"),
+    ("LEV017", "Dubbaka Bharath", "Sameer Shaik"),
+    ("LEV026", "Durga Sai Vara Prasad Chandragiri", "Durgaprasad Medipudi"),
+    ("LEV031", "Gorle Leela Sai Kumar", "Durgaprasad Medipudi"),
+    ("LEV127", "Gubba Vasini", "Anusha Enigalla"),
+    ("LEV005", "Gurajapu Pavani", "Nagendra Uggirala"),
+    ("LEV118", "Hari Charan Teja Gudapati", "Anusha Enigalla"),
+    ("LEV050", "Harsha Vardhan Naidu Dasireddy", "Kallamadi Kranti Kumar Reddy"),
+    ("LEV044", "Hemant Tukaram Pawade", "Mani Kiran Kopanathi"),
+    ("LEV008", "Hruthik Venkata Sai Ganesh Jamanu", "Chandu Thota"),
+    ("LEV033", "Jagadeesh Bedolla", "Sameer Shaik"),
+    ("LEV128", "Jothi Lakshmi A", "Anusha Enigalla"),
+    ("LEV013", "Kallamadi Kowsik Reddy", "Durgaprasad Medipudi"),
+    ("LEV011", "Kallamadi Kranti Kumar Reddy", "Durgaprasad Medipudi"),
+    ("LEV004", "Kallamadi Keerthi", "Nagendra Uggirala"),
+    ("LEV003", "Kandepuneni Swetha Naga Durga", "Chandu Thota"),
+    ("LEV036", "Kasarapu Rajeswar Reddy", "Sameer Shaik"),
+    ("LEV019", "Keerthi Ranjani Maddala", "Sameer Shaik"),
+    ("LEV032", "Khuswanth Rao Jadav", "Sameer Shaik"),
+    ("LEV034", "Kishore Tiruveedhula", "Mani Kiran Kopanathi"),
+    ("LEV046", "Kondareddy Revathi", "Sameer Shaik"),
+    ("LEV126", "Korada Kavya", "Anusha Enigalla"),
+    ("LEV035", "Kothapalli Sai Avinash Varma", "Mani Kiran Kopanathi"),
+    ("LEV048", "Lokeshwar Reddy Kondappagari", "Kallamadi Kranti Kumar Reddy"),
+    ("LEV010", "Mani Kiran Kopanathi", "Durgaprasad Medipudi"),
+    ("LEV041", "Manikanta Nedunuri", "Mani Kiran Kopanathi"),
+    ("LEV120", "Medipudi Durgaprasad", None),
+    ("LEV002", "Minal Devidas Mahajan", "Durgaprasad Medipudi"),
+    ("LEV041", "Mohammad Aslam Yakub Khan", "Durgaprasad Medipudi"),
+    ("LEV042", "Muniganti Sai Sumiran", "Sameer Shaik"),
     ("LEV117", "N Sairam Srinivasa Chakravarthi Pothureddy", "Kallamadi Kranti Kumar Reddy"),
-    ("LEV040", "Nagadurga Sarnala",                      "Mani Kiran Kopanathi"),
-    ("LEV024", "Nagendra Uggirala",                      "Durgaprasad Medipudi"),
-    ("LEV015", "Nani Venkata Ravi Teja Maddala",         "Sameer Shaik"),
-    ("LEV022", "Naveen Sai Koppereddy",                  "Nagendra Uggirala"),
-    ("LEV025", "Nollu Lalith Kumar",                     "Sameer Shaik"),
-    ("LEV021", "Pagadala Anitha",                        "Sameer Shaik"),
-    ("LEV018", "Peddireddy Sai Kumar Reddy",             "Sameer Shaik"),
-    ("LEV037", "Pesaru Kireeti",                         "Sameer Shaik"),
-    ("LEV049", "Pillala Sukanya",                        "Kallamadi Kranti Kumar Reddy"),
-    ("LEV006", "Potnuri Naveen Bhargav",                 "Chandu Thota"),
-    ("LEV051", "Pradeep Bantapalli",                     "Kallamadi Kranti Kumar Reddy"),
-    ("LEV016", "Pramod Kumar Sindhe",                    "Sameer Shaik"),
-    ("LEV009", "Sameer Shaik",                           "Durgaprasad Medipudi"),
-    ("LEV030", "Sasi Kumar Reddy Chintala",              "Mani Kiran Kopanathi"),
-    ("LEV043", "Satya Kiran Chelluboina",                "Mani Kiran Kopanathi"),
-    ("LEV124", "Sumathi Mittapalli",                     "Anusha Enigalla"),
-    ("LEV007", "Syed Afran Ali",                         "Chandu Thota"),
-    ("LEV119", "Vamshi Hasanabada",                      "Kallamadi Kranti Kumar Reddy"),
-    ("LEV125", "Vijay Ram Maddukuri",                    "Anusha Enigalla"),
+    ("LEV040", "Nagadurga Sarnala", "Mani Kiran Kopanathi"),
+    ("LEV024", "Nagendra Uggirala", "Durgaprasad Medipudi"),
+    ("LEV015", "Nani Venkata Ravi Teja Maddala", "Sameer Shaik"),
+    ("LEV022", "Naveen Sai Koppereddy", "Nagendra Uggirala"),
+    ("LEV025", "Nollu Lalith Kumar", "Sameer Shaik"),
+    ("LEV021", "Pagadala Anitha", "Sameer Shaik"),
+    ("LEV018", "Peddireddy Sai Kumar Reddy", "Sameer Shaik"),
+    ("LEV037", "Pesaru Kireeti", "Sameer Shaik"),
+    ("LEV049", "Pillala Sukanya", "Kallamadi Kranti Kumar Reddy"),
+    ("LEV006", "Potnuri Naveen Bhargav", "Chandu Thota"),
+    ("LEV051", "Pradeep Bantapalli", "Kallamadi Kranti Kumar Reddy"),
+    ("LEV016", "Pramod Kumar Sindhe", "Sameer Shaik"),
+    ("LEV009", "Sameer Shaik", "Durgaprasad Medipudi"),
+    ("LEV030", "Sasi Kumar Reddy Chintala", "Mani Kiran Kopanathi"),
+    ("LEV043", "Satya Kiran Chelluboina", "Mani Kiran Kopanathi"),
+    ("LEV124", "Sumathi Mittapalli", "Anusha Enigalla"),
+    ("LEV007", "Syed Afran Ali", "Chandu Thota"),
+    ("LEV119", "Vamshi Hasanabada", "Kallamadi Kranti Kumar Reddy"),
+    ("LEV125", "Vijay Ram Maddukuri", "Anusha Enigalla"),
 ]
-
 
 def _emp_email_prefix(name: str, code: str) -> str:
     """Generate email prefix from name + employee code."""
@@ -385,71 +348,42 @@ def _emp_email_prefix(name: str, code: str) -> str:
         return f"{parts[0]}.{parts[-1]}.{code.lower()}"
     return f"{parts[0]}.{code.lower()}"
 
+STUDENT_NAMES = [(emp[1], _emp_email_prefix(emp[1], emp[0])) for emp in EMPLOYEE_DATA]
 
-def _emp_phone(code: str) -> str:
-    """Generate a deterministic phone from employee code number — offset by 8000000000 to avoid conflicts."""
-    num = int(code[3:]) if code[3:].isdigit() else 0
-    # Use 8xxxxxxxxx range (distinct from 9xxxxxxxxx used by system accounts)
-    return f"+91-8{num:09d}"
-
-
-# Build STUDENT_NAMES from employee data (all 63 employees as students)
-STUDENT_NAMES = [
-    (emp[1], _emp_email_prefix(emp[1], emp[0]))
-    for emp in EMPLOYEE_DATA
-]
-
-# Keep original visitor names for booking demo data
 VISITOR_NAMES = [
-    ("Arun Kapoor", "arun.kapoor"), ("Sunita Bose", "sunita.bose"),
-    ("Manoj Yadav", "manoj.yadav"), ("Rekha Mishra", "rekha.mishra"),
-    ("Tarun Saxena", "tarun.saxena"), ("Geeta Pandey", "geeta.pandey"),
-    ("Harish Nambiar", "harish.nambiar"), ("Swati Kulkarni", "swati.kulkarni"),
-    ("Rajesh Dubey", "rajesh.dubey"), ("Anjali Sinha", "anjali.sinha"),
+    ("Arun Kapoor", "arun.kapoor"),
+    ("Sunita Bose", "sunita.bose"),
+    ("Manoj Yadav", "manoj.yadav"),
+    ("Rekha Mishra", "rekha.mishra"),
+    ("Tarun Saxena", "tarun.saxena"),
+    ("Geeta Pandey", "geeta.pandey"),
+    ("Harish Nambiar", "harish.nambiar"),
+    ("Swati Kulkarni", "swati.kulkarni"),
+    ("Rajesh Dubey", "rajesh.dubey"),
+    ("Anjali Sinha", "anjali.sinha"),
 ]
-
-# Employee code → student number mapping (for student_number field)
-EMPLOYEE_CODE_MAP = {emp[1]: emp[0] for emp in EMPLOYEE_DATA}
-EMPLOYEE_LEAD_MAP = {emp[1]: emp[2] for emp in EMPLOYEE_DATA}
 
 COMPLAINT_DATA = [
-    ("maintenance", "Water leakage in bathroom", "There is a continuous water leakage from the bathroom tap. It has been going on for 3 days and wasting a lot of water.", "high"),
-    ("food", "Mess food quality declined", "The quality of food in the mess has significantly declined over the past week. The dal is undercooked and vegetables are not fresh.", "medium"),
-    ("electricity", "Power socket not working", "The power socket near my bed (Bed 2, Room 201) is not working. I cannot charge my laptop.", "medium"),
-    ("cleanliness", "Common bathroom not cleaned", "The common bathroom on floor 2 has not been cleaned for 2 days. It is unhygienic.", "high"),
-    ("wifi", "WiFi speed very slow", "The WiFi speed has been extremely slow for the past week. I cannot attend online classes properly.", "low"),
-    ("security", "Main gate left open at night", "The main gate was found open at 2 AM last night. This is a serious security concern.", "high"),
-    ("noise", "Loud music from room 302", "Residents in room 302 play loud music after 11 PM regularly, disturbing others.", "medium"),
-    ("maintenance", "Ceiling fan making noise", "The ceiling fan in room 103 makes a loud rattling noise. Please fix it.", "low"),
+    ("maintenance", "Water leakage in bathroom", "Continuous water leakage from bathroom tap. Wasting a lot of water.", "high"),
+    ("food", "Mess food quality declined", "Food quality has declined. Dal is undercooked.", "medium"),
+    ("electricity", "Power socket not working", "Power socket near my bed is not working.", "medium"),
+    ("cleanliness", "Common bathroom not cleaned", "Common bathroom not cleaned for 2 days.", "high"),
+    ("wifi", "WiFi speed very slow", "WiFi speed is extremely slow. Cannot attend online classes.", "low"),
+    ("security", "Main gate left open at night", "Main gate was found open at 2 AM. Security concern.", "high"),
 ]
 
 NOTICE_DATA = [
-    ("Mess Menu Update - Week of March 27", "Dear residents, please note the updated mess menu for this week. Special Sunday feast includes Biryani and Kheer. Mess timings remain unchanged.", "general", "medium"),
-    ("Water Supply Interruption - Sunday 6 AM to 10 AM", "Due to maintenance work, water supply will be interrupted on Sunday from 6 AM to 10 AM. Please store water accordingly.", "maintenance", "high"),
-    ("Hostel Day Celebration - April 5th", "We are celebrating Hostel Day on April 5th! Events include cultural programs, sports, and a special dinner. All residents are invited.", "event", "medium"),
-    ("Visitor Policy Reminder", "Reminder: Visitors are allowed only in common areas between 9 AM and 8 PM. All visitors must register at the reception desk.", "policy", "medium"),
-    ("Laundry Service Schedule Change", "Starting next week, laundry service will be available on both Saturday and Sunday (previously only Sunday). Charges remain the same.", "general", "low"),
-    ("Fire Safety Drill - April 10th", "A mandatory fire safety drill will be conducted on April 10th at 10 AM. All residents must participate. Assembly point: Main gate.", "safety", "high"),
-    ("Internet Upgrade Complete", "We have upgraded our internet connection to 200 Mbps fiber. You should experience significantly faster speeds now.", "general", "low"),
-    ("Rent Due Reminder - April 1st", "Monthly rent for April is due on April 1st. Please pay at the reception or via online transfer. Late payment attracts a penalty of Rs. 100/day.", "payment", "high"),
+    ("Mess Menu Update", "Updated mess menu for this week. Sunday special includes Biryani.", "general", "medium"),
+    ("Water Supply Interruption - Sunday 6 AM to 10 AM", "Due to maintenance, water supply will be interrupted.", "maintenance", "high"),
+    ("Hostel Day Celebration - April 5th", "Cultural programs, sports, and special dinner. All residents invited.", "event", "medium"),
+    ("Visitor Policy Reminder", "Visitors allowed only in common areas between 9 AM and 8 PM.", "policy", "medium"),
 ]
 
 MAINTENANCE_DATA = [
-    ("plumbing", "Bathroom pipe burst in Room 201", "The main water pipe in the bathroom of Room 201 has burst. Water is leaking onto the floor.", "emergency", True),
-    ("electrical", "Short circuit in corridor lights", "The corridor lights on floor 2 have a short circuit. They flicker and sometimes go off completely.", "high", True),
-    ("carpentry", "Broken door hinge in Room 103", "The door hinge in Room 103 is broken. The door does not close properly.", "medium", False),
-    ("painting", "Wall paint peeling in Room 302", "The wall paint in Room 302 is peeling off. It looks unhygienic and needs repainting.", "low", False),
-    ("plumbing", "Clogged drain in common bathroom", "The drain in the common bathroom on floor 1 is clogged. Water is not draining properly.", "high", False),
-    ("electrical", "AC not cooling in Room 201", "The AC in Room 201 is not cooling properly. Temperature stays at 28°C even at lowest setting.", "medium", True),
-]
-
-# Visitor names for booking demo data
-VISITOR_NAMES = [
-    ("Arun Kapoor", "arun.kapoor"), ("Sunita Bose", "sunita.bose"),
-    ("Manoj Yadav", "manoj.yadav"), ("Rekha Mishra", "rekha.mishra"),
-    ("Tarun Saxena", "tarun.saxena"), ("Geeta Pandey", "geeta.pandey"),
-    ("Harish Nambiar", "harish.nambiar"), ("Swati Kulkarni", "swati.kulkarni"),
-    ("Rajesh Dubey", "rajesh.dubey"), ("Anjali Sinha", "anjali.sinha"),
+    ("plumbing", "Bathroom pipe burst", "Main water pipe in bathroom has burst.", "emergency", True),
+    ("electrical", "Short circuit in corridor lights", "Corridor lights have short circuit.", "high", True),
+    ("carpentry", "Broken door hinge", "Door hinge is broken. Door doesn't close properly.", "medium", False),
+    ("plumbing", "Clogged drain", "Drain in common bathroom is clogged.", "high", False),
 ]
 
 # ---------------------------------------------------------------------------
@@ -458,21 +392,19 @@ VISITOR_NAMES = [
 class StayEaseSeeder:
     def __init__(self, session: AsyncSession):
         self.session = session
-        self.users: dict[str, str] = {}       # email -> id
-        self.hostels: dict[str, str] = {}     # name -> id
-        self.rooms: dict[str, dict] = {}      # room_id -> {hostel_id, room_id}
-        self.beds: dict[str, dict] = {}       # bed_id -> {hostel_id, room_id, bed_id}
-        self.students: dict[str, str] = {}    # user_id -> student_id
+        self.users: dict[str, str] = {}
+        self.hostels: dict[str, str] = {}
+        self.rooms: dict[str, dict] = {}
+        self.beds: dict[str, dict] = {}
+        self.students: dict[str, str] = {}
         self.bookings: list[Booking] = []
 
-    # ------------------------------------------------------------------
     def _uid(self) -> uuid.UUID:
         return uuid.uuid4()
 
     async def _flush(self):
         await self.session.flush()
 
-    # ------------------------------------------------------------------
     async def create_user(self, email: str, phone: str, full_name: str,
                           role: UserRole, password: str = "Test@1234") -> str:
         user = User(
@@ -486,9 +418,7 @@ class StayEaseSeeder:
         print(f"  ✓ {role.value:15s} {full_name} ({email})")
         return user.id
 
-    # ------------------------------------------------------------------
-    async def create_hostel(self, cfg: dict, admin_id: str,
-                            supervisor_id: str) -> str:
+    async def create_hostel(self, cfg: dict, admin_id: str, supervisor_id: str) -> str:
         hostel = Hostel(
             id=self._uid(),
             name=cfg["name"], slug=cfg["slug"],
@@ -510,25 +440,21 @@ class StayEaseSeeder:
         await self._flush()
         self.hostels[cfg["name"]] = hostel.id
 
-        # Admin mapping
         self.session.add(AdminHostelMapping(
             id=self._uid(), admin_id=admin_id, hostel_id=hostel.id,
             is_primary=True, assigned_by=admin_id,
         ))
-        # Supervisor mapping
         self.session.add(SupervisorHostelMapping(
             id=self._uid(), supervisor_id=supervisor_id,
             hostel_id=hostel.id, assigned_by=admin_id,
         ))
 
-        # Amenities
         for name, category in cfg["amenities"]:
             self.session.add(HostelAmenity(
                 id=self._uid(), hostel_id=hostel.id,
                 name=name, category=category,
             ))
 
-        # Images
         images = HOSTEL_IMAGES.get(cfg["name"], [])
         for i, url in enumerate(images):
             self.session.add(HostelImage(
@@ -544,8 +470,6 @@ class StayEaseSeeder:
         await self._flush()
         print(f"  ✓ Hostel: {cfg['name']} ({cfg['city']})")
         return hostel.id
-
-    # ------------------------------------------------------------------
 
     async def create_rooms_and_beds(self, hostel_id: str, rooms_cfg: list) -> None:
         for r in rooms_cfg:
@@ -564,8 +488,7 @@ class StayEaseSeeder:
 
             for b in range(1, r["beds"] + 1):
                 bed_number = f"B{b}"
-                
-                # Check if bed already exists
+                # Check if bed already exists to avoid duplicates
                 existing_bed = None
                 for existing in self.beds.values():
                     if existing.get("room_id") == room.id and existing.get("bed_number") == bed_number:
@@ -573,7 +496,6 @@ class StayEaseSeeder:
                         break
                 
                 if existing_bed:
-                    print(f"    → Bed {bed_number} already exists, skipping")
                     continue
                     
                 bed = Bed(
@@ -591,7 +513,6 @@ class StayEaseSeeder:
                     "bed_number": bed_number,
                 }
 
-    # ------------------------------------------------------------------
     async def create_booking(self, visitor_id: str, hostel_id: str,
                              room_id: str, bed_id: str | None,
                              status: BookingStatus,
@@ -601,7 +522,6 @@ class StayEaseSeeder:
                              approved_by: str | None = None) -> Booking:
         check_in = date.today() - timedelta(days=5)
         check_out = check_in + timedelta(days=days)
-        room = next((r for r in self.rooms.values() if r["room_id"] == room_id), None)
         monthly_rent = 6000.0
         booking_advance = monthly_rent * 0.25
 
@@ -626,8 +546,8 @@ class StayEaseSeeder:
             date_of_birth=date(2000, 6, 15),
             gender="M",
             occupation="Student",
-            institution="Osmania University",
-            current_address="123 Main Street, Hyderabad",
+            institution="University",
+            current_address="123 Main Street",
             id_type="aadhar",
             emergency_contact_name="Parent",
             emergency_contact_phone="+91-9000000099",
@@ -657,13 +577,10 @@ class StayEaseSeeder:
         self.bookings.append(booking)
         return booking
 
-    # ------------------------------------------------------------------
     async def create_student(self, user_id: str, hostel_id: str,
                              room_id: str, bed_id: str,
                              booking_id: str, idx: int,
                              employee_code: str | None = None) -> str:
-        # Use employee code + index suffix to guarantee uniqueness
-        # e.g. LEV044-22 for Hemant Pawade (index 22)
         if employee_code:
             student_number = f"{employee_code}-{idx:02d}"
         else:
@@ -682,7 +599,6 @@ class StayEaseSeeder:
         self.students[user_id] = student.id
         return student.id
 
-    # ------------------------------------------------------------------
     async def create_payment(self, hostel_id: str, booking_id: str | None,
                              student_id: str | None, amount: float,
                              ptype: str = "booking_advance",
@@ -696,15 +612,12 @@ class StayEaseSeeder:
             gateway_payment_id=f"pay_{uuid.uuid4().hex[:12]}" if status == "captured" else None,
             gateway_signature=f"sig_{uuid.uuid4().hex[:24]}" if status == "captured" else None,
             status=status,
-            receipt_url=f"https://stayease.in/receipts/{uuid.uuid4().hex[:8]}.pdf" if status == "captured" else None,
             due_date=date.today(),
             paid_at=datetime.now(UTC) if status == "captured" else None,
         ))
         await self._flush()
 
-    # ------------------------------------------------------------------
     async def create_mess_menu(self, hostel_id: str, created_by: str) -> None:
-        # Current week
         today = date.today()
         week_start = today - timedelta(days=today.weekday())
         menu = MessMenu(
@@ -721,25 +634,8 @@ class StayEaseSeeder:
                 item_name=item, is_veg=is_veg,
                 special_note=note,
             ))
-        # Next week (preview)
-        next_week_start = week_start + timedelta(weeks=1)
-        menu2 = MessMenu(
-            id=self._uid(), hostel_id=hostel_id,
-            week_start_date=next_week_start,
-            is_active=False, created_by=created_by,
-        )
-        self.session.add(menu2)
-        await self._flush()
-        for day, meal, item, is_veg, note in MESS_MENU:
-            self.session.add(MessMenuItem(
-                id=self._uid(), menu_id=menu2.id,
-                day_of_week=day, meal_type=meal,
-                item_name=item, is_veg=is_veg,
-                special_note=note,
-            ))
         await self._flush()
 
-    # ------------------------------------------------------------------
     async def create_notices(self, hostel_id: str, created_by: str) -> None:
         for title, content, ntype, priority in NOTICE_DATA:
             self.session.add(Notice(
@@ -750,7 +646,6 @@ class StayEaseSeeder:
             ))
         await self._flush()
 
-    # ------------------------------------------------------------------
     async def create_complaints(self, hostel_id: str,
                                 student_ids: list[str],
                                 supervisor_id: str) -> None:
@@ -764,11 +659,10 @@ class StayEaseSeeder:
                 priority=priority,
                 status="resolved" if i % 3 == 0 else ("in_progress" if i % 3 == 1 else "open"),
                 assigned_to=supervisor_id if i % 2 == 0 else None,
-                resolution_notes="Issue has been resolved by maintenance team." if i % 3 == 0 else None,
+                resolution_notes="Issue resolved by maintenance team." if i % 3 == 0 else None,
             )
             self.session.add(complaint)
             await self._flush()
-            # Add a comment
             self.session.add(ComplaintComment(
                 id=self._uid(), complaint_id=complaint.id,
                 author_id=supervisor_id,
@@ -776,12 +670,12 @@ class StayEaseSeeder:
             ))
         await self._flush()
 
-    # ------------------------------------------------------------------
     async def create_attendance(self, hostel_id: str,
                                 student_ids: list[str],
                                 supervisor_id: str) -> None:
         statuses = ["present", "present", "present", "late", "absent"]
         seen: set[tuple] = set()
+        
         for student_id in student_ids:
             for days_ago in range(14):
                 d = date.today() - timedelta(days=days_ago)
@@ -789,19 +683,34 @@ class StayEaseSeeder:
                 if key in seen:
                     continue
                 seen.add(key)
+                
+                # Check if attendance record already exists
+                stmt = select(AttendanceRecord).where(
+                    AttendanceRecord.student_id == student_id,
+                    AttendanceRecord.date == d
+                )
+                result = await self.session.execute(stmt)
+                existing = result.scalar_one_or_none()
+                
+                if existing:
+                    continue
+                    
                 st = statuses[days_ago % len(statuses)]
-                self.session.add(AttendanceRecord(
-                    id=self._uid(), student_id=student_id,
-                    hostel_id=hostel_id, date=d,
+                record = AttendanceRecord(
+                    id=self._uid(),
+                    student_id=student_id,
+                    hostel_id=hostel_id,
+                    date=d,
                     check_in_time=time(9, 0) if st != "absent" else None,
                     check_out_time=time(22, 0) if st == "present" else None,
-                    status=st, marked_by=supervisor_id,
+                    status=st,
+                    marked_by=supervisor_id,
                     method="manual",
                     remarks="Late arrival" if st == "late" else None,
-                ))
+                )
+                self.session.add(record)
         await self._flush()
 
-    # ------------------------------------------------------------------
     async def create_maintenance(self, hostel_id: str,
                                  room_ids: list[str],
                                  supervisor_id: str,
@@ -821,15 +730,12 @@ class StayEaseSeeder:
             ))
         await self._flush()
 
-    # ------------------------------------------------------------------
-    async def create_reviews(self, hostel_id: str,
-                             visitor_ids: list[str]) -> None:
+    async def create_reviews(self, hostel_id: str, visitor_ids: list[str]) -> None:
         reviews = [
-            (4.8, "Excellent hostel!", "Best hostel I've stayed in. Clean rooms, great food, and friendly staff. The WiFi is fast and the study room is very helpful for exam prep."),
-            (4.5, "Very good experience", "Good facilities and nice location. The mess food is tasty and the staff is responsive. Minor issue with hot water sometimes."),
-            (4.2, "Comfortable stay", "Decent hostel with good amenities. The gym is well-equipped. Would recommend to students looking for budget accommodation."),
-            (3.8, "Good but can improve", "Overall good experience. The food quality could be better on weekdays. Security is excellent and the location is convenient."),
-            (5.0, "Perfect for students!", "Absolutely love this hostel. The community is great, food is delicious, and the management is very professional. Highly recommended!"),
+            (4.8, "Excellent hostel!", "Clean rooms, great food, and friendly staff."),
+            (4.5, "Very good experience", "Good facilities and nice location."),
+            (4.2, "Comfortable stay", "Decent hostel with good amenities."),
+            (5.0, "Perfect for students!", "Absolutely love this hostel. Highly recommended!"),
         ]
         for i, (rating, title, content) in enumerate(reviews):
             visitor_id = visitor_ids[i % len(visitor_ids)]
@@ -843,28 +749,28 @@ class StayEaseSeeder:
                 value_rating=max(3.5, rating - 0.1),
                 title=title, content=content,
                 is_verified=True, is_published=True,
-                admin_reply="Thank you for your feedback! We're glad you enjoyed your stay." if i % 2 == 0 else None,
+                admin_reply="Thank you for your feedback!" if i % 2 == 0 else None,
             ))
         await self._flush()
 
-    # ------------------------------------------------------------------
     async def create_subscription(self, hostel_id: str) -> None:
-        self.session.add(Subscription(
-            id=self._uid(), hostel_id=hostel_id,
+        subscription = Subscription(
+            id=self._uid(),
+            hostel_id=hostel_id,
             tier="professional",
             price_monthly=2999.0,
             start_date=date.today() - timedelta(days=60),
             end_date=date.today() + timedelta(days=305),
-            status="active", auto_renew=True,
-        ))
+            status="active",
+            auto_renew=True,
+        )
+        self.session.add(subscription)
         await self._flush()
 
-    # ------------------------------------------------------------------
     async def create_inquiry(self, hostel_id: str) -> None:
         inquiries = [
-            ("Ravi Kumar", "ravi.kumar@gmail.com", "+91-9111111111", "Is there availability for a single room from April 1st?"),
+            ("Ravi Kumar", "ravi.kumar@gmail.com", "+91-9111111111", "Is there availability for a single room?"),
             ("Preethi S", "preethi.s@gmail.com", "+91-9222222222", "What are the monthly charges including food?"),
-            ("Aditya M", "aditya.m@gmail.com", "+91-9333333333", "Do you allow short-term stays of 2 weeks?"),
         ]
         for name, email, phone, msg in inquiries:
             self.session.add(Inquiry(
@@ -873,7 +779,6 @@ class StayEaseSeeder:
             ))
         await self._flush()
 
-    # ------------------------------------------------------------------
     async def run(self) -> None:
         print("\n" + "="*60)
         print("  🌱  StayEase — Full Seed Data Population")
@@ -882,7 +787,7 @@ class StayEaseSeeder:
         # ── Users ──────────────────────────────────────────────────────
         print("👤 Creating users...\n")
 
-        super_admin_id = await self.create_user(
+        await self.create_user(
             "superadmin@stayease.com", "+91-9000000001",
             "Super Admin", UserRole.SUPER_ADMIN,
         )
@@ -914,7 +819,6 @@ class StayEaseSeeder:
         student_user_ids = []
         for i, (name, prefix) in enumerate(STUDENT_NAMES):
             emp_code = EMPLOYEE_DATA[i][0] if i < len(EMPLOYEE_DATA) else f"LEV{i+1:03d}"
-            # Use row index (i+1) for phone to guarantee uniqueness across all 63 employees
             emp_phone = f"+91-8{(i + 1):09d}"
             sid = await self.create_user(
                 f"{prefix}@levitica.in", emp_phone,
@@ -937,7 +841,6 @@ class StayEaseSeeder:
         # ── Bookings & Students ────────────────────────────────────────
         print("\n📅 Creating bookings and students...\n")
 
-        # Group beds by hostel
         beds_by_hostel: dict[str, list[str]] = {}
         for bid, bdata in self.beds.items():
             hid = bdata["hostel_id"]
@@ -959,7 +862,6 @@ class StayEaseSeeder:
             BookingStatus.CANCELLED,
         ]
 
-        # Create bookings for visitors (various statuses)
         for i, visitor_id in enumerate(visitor_ids):
             hid = hostel_ids[i % len(hostel_ids)]
             hostel_beds = beds_by_hostel.get(hid, [])
@@ -984,7 +886,6 @@ class StayEaseSeeder:
             )
             print(f"  ✓ Booking {booking.booking_number} [{status.value}] — {name}")
 
-            # Create payment for paid bookings
             if status in (BookingStatus.APPROVED, BookingStatus.CHECKED_IN):
                 await self.create_payment(
                     hostel_id=hid, booking_id=booking.id,
@@ -992,7 +893,6 @@ class StayEaseSeeder:
                     status="captured",
                 )
 
-            # Create checked-in students from student users
         print("\n🎓 Creating student records...\n")
         for i, student_user_id in enumerate(student_user_ids):
             hid = hostel_ids[i % len(hostel_ids)]
@@ -1001,9 +901,10 @@ class StayEaseSeeder:
             if not hostel_beds or not hostel_rooms:
                 continue
 
-            # Use a different bed for each student
-            bed_idx = (i + len(visitor_ids)) % len(hostel_beds)
-            bed_id = hostel_beds[bed_idx]
+            bed_idx = (i + len(visitor_ids)) % len(hostel_beds) if hostel_beds else 0
+            bed_id = hostel_beds[bed_idx] if hostel_beds else None
+            if not bed_id:
+                continue
             room_id = self.beds[bed_id]["room_id"]
             admin_id = admin_ids[i % len(admin_ids)]
             name = STUDENT_NAMES[i][0]
@@ -1025,7 +926,6 @@ class StayEaseSeeder:
             )
             student_idx += 1
 
-            # Monthly rent payment
             await self.create_payment(
                 hostel_id=hid, booking_id=booking.id,
                 student_id=student_id, amount=6000.0,
@@ -1034,10 +934,10 @@ class StayEaseSeeder:
             print(f"  ✓ Student {emp_code or 'SE'+str(student_idx).zfill(4)} — {name}")
 
         # ── Mess Menus ─────────────────────────────────────────────────
-        print("\n🍽️  Creating mess menus (full 7-day × 4-meal)...\n")
+        print("\n🍽️  Creating mess menus...\n")
         for i, hid in enumerate(hostel_ids):
             await self.create_mess_menu(hid, admin_ids[i % len(admin_ids)])
-            print(f"  ✓ Mess menu for hostel {i+1} (28 items × 2 weeks)")
+            print(f"  ✓ Mess menu for hostel {i+1}")
 
         # ── Notices ────────────────────────────────────────────────────
         print("\n📢 Creating notices...\n")
@@ -1059,7 +959,6 @@ class StayEaseSeeder:
         if student_ids_list:
             for i, hid in enumerate(hostel_ids):
                 sup_id = supervisor_ids[i % len(supervisor_ids)]
-                # Only students belonging to this hostel
                 hostel_student_ids = [
                     sid for uid, sid in self.students.items()
                     if any(
@@ -1067,7 +966,6 @@ class StayEaseSeeder:
                         for b in self.bookings
                     )
                 ]
-                # Fallback: take first 5 from all students if none found
                 if not hostel_student_ids:
                     hostel_student_ids = student_ids_list[:5]
                 await self.create_attendance(hid, hostel_student_ids[:5], sup_id)
@@ -1086,7 +984,7 @@ class StayEaseSeeder:
         print("\n⭐ Creating reviews...\n")
         for i, hid in enumerate(hostel_ids):
             await self.create_reviews(hid, visitor_ids)
-        print(f"  ✓ 5 reviews per hostel")
+        print(f"  ✓ Reviews per hostel")
 
         # ── Subscriptions ──────────────────────────────────────────────
         print("\n💳 Creating subscriptions...\n")
@@ -1098,7 +996,7 @@ class StayEaseSeeder:
         print("\n📩 Creating inquiries...\n")
         for hid in hostel_ids:
             await self.create_inquiry(hid)
-        print(f"  ✓ 3 inquiries per hostel")
+        print(f"  ✓ Inquiries per hostel")
 
         # ── Commit ─────────────────────────────────────────────────────
         print("\n💾 Committing to database...\n")
@@ -1121,15 +1019,6 @@ class StayEaseSeeder:
   Beds           : {len(self.beds)}
   Bookings       : {len(self.bookings)}
   Students       : {len(self.students)}
-  Mess menus     : {len(hostel_ids) * 2} (current + next week)
-  Menu items     : {len(hostel_ids) * 2 * len(MESS_MENU)} total
-  Notices        : {len(hostel_ids) * len(NOTICE_DATA)}
-  Complaints     : {len(hostel_ids) * len(COMPLAINT_DATA)}
-  Maintenance    : {len(hostel_ids) * len(MAINTENANCE_DATA)}
-  Reviews        : {len(hostel_ids) * 5}
-  Subscriptions  : {len(hostel_ids)}
-  Inquiries      : {len(hostel_ids) * 3}
-  ──────────────────────────────────────
 
   🔑 Login credentials (all use password: Test@1234)
   ──────────────────────────────────────
@@ -1138,8 +1027,8 @@ class StayEaseSeeder:
   Admin 2      : admin2@stayease.com
   Supervisor 1 : supervisor1@stayease.com
   Visitor 1    : arun.kapoor@gmail.com
-  Student 1    : abhilash.gurrampally.lev029@levitica.in  (LEV029)
-  Student 22   : hemant.pawade.lev044@levitica.in         (LEV044 — Hemant Pawade)
+  Student 1    : abhilash.gurrampally.lev029@levitica.in
+  Student 22   : hemant.pawade.lev044@levitica.in
   ──────────────────────────────────────
 """)
 
@@ -1156,32 +1045,27 @@ async def _run():
     if clean:
         print("\n🗑️  Cleaning existing data (--clean flag)...\n")
         async with engine.begin() as conn:
-            # Delete in reverse dependency order (child tables first)
-            # Use TRUNCATE with CASCADE - doesn't require superuser on most clouds
             tables = [
                 "complaint_comments", "notice_reads", "attendance_records",
-                "maintenance_requests", "waitlist_entries", "reviews",
-                "inquiries", "payment_webhook_events", "payments",
-                "bed_stays", "booking_status_history", "students",
-                "bookings", "beds", "rooms", "hostel_amenities",
-                "hostel_images", "admin_hostel_mappings", "supervisor_hostel_mappings",
-                "visitor_favorites", "subscriptions", "complaints", "notices",
-                "mess_menu_items", "mess_menus", "hostels",
+                "maintenance_requests", "reviews", "inquiries",
+                "payment_webhook_events", "payments", "bed_stays",
+                "booking_status_history", "students", "bookings",
+                "beds", "rooms", "hostel_amenities", "hostel_images",
+                "admin_hostel_mappings", "supervisor_hostel_mappings",
+                "visitor_favorites", "subscriptions", "complaints",
+                "notices", "mess_menu_items", "mess_menus", "hostels",
                 "otp_verifications", "refresh_tokens", "users",
             ]
-            
-            # Try TRUNCATE first (cleaner, often works without superuser)
             for table in tables:
                 try:
                     await conn.execute(__import__("sqlalchemy").text(f'TRUNCATE TABLE "{table}" CASCADE'))
                     print(f"  ✓ Cleared {table}")
                 except Exception as e:
-                    # Fall back to DELETE if TRUNCATE fails
                     try:
                         await conn.execute(__import__("sqlalchemy").text(f'DELETE FROM "{table}"'))
                         print(f"  ✓ Cleared {table} (via DELETE)")
-                    except Exception as e2:
-                        print(f"  ⚠ Could not clear {table}: {e2}")
+                    except Exception:
+                        pass
         print("\n  ✓ Data clearing complete\n")
 
     async with engine.begin() as conn:

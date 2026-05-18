@@ -178,27 +178,49 @@ async def modify_booking(
 
 @router.post("/waitlist/join", response_model=WaitlistEntryResponse, status_code=201)
 async def join_waitlist(payload: WaitlistJoinRequest, db: DBSession, current_user: VisitorUser):
-    entry, position = await BookingService(db).join_waitlist(visitor_id=current_user.id, payload=payload)
-    # Fire-and-forget notification — don't fail if Redis is down.
+    """Join waitlist for a room when no beds are available."""
     try:
-        notify_waitlist_joined_task.apply_async(args=[str(entry.id)], countdown=1)
-    except Exception:
-        pass
-    return {
-        "id": str(entry.id),
-        "visitor_id": str(entry.visitor_id),
-        "hostel_id": str(entry.hostel_id),
-        "room_id": str(entry.room_id),
-        "bed_id": str(entry.bed_id) if entry.bed_id else None,
-        "booking_mode": entry.booking_mode.value if hasattr(entry.booking_mode, "value") else str(entry.booking_mode),
-        "check_in_date": entry.check_in_date,
-        "check_out_date": entry.check_out_date,
-        "status": entry.status.value if hasattr(entry.status, "value") else str(entry.status),
-        "position": position,
-        "created_at": entry.created_at,
-        "updated_at": entry.updated_at,
-    }
-
+        # Validate room exists
+        from app.models.room import Room
+        room_result = await db.execute(select(Room).where(Room.id == payload.room_id))
+        room = room_result.scalar_one_or_none()
+        if not room:
+            raise HTTPException(
+                status_code=404, 
+                detail=f"Room with id '{payload.room_id}' not found."
+            )
+        
+        # Validate dates
+        if payload.check_out_date <= payload.check_in_date:
+            raise HTTPException(
+                status_code=400,
+                detail="check_out_date must be after check_in_date"
+            )
+        
+        entry, position = await BookingService(db).join_waitlist(
+            visitor_id=current_user.id, 
+            payload=payload
+        )
+        
+        return {
+            "id": str(entry.id),
+            "visitor_id": str(entry.visitor_id),
+            "hostel_id": str(entry.hostel_id),
+            "room_id": str(entry.room_id),
+            "bed_id": str(entry.bed_id) if entry.bed_id else None,
+            "booking_mode": entry.booking_mode.value if hasattr(entry.booking_mode, "value") else str(entry.booking_mode),
+            "check_in_date": entry.check_in_date,
+            "check_out_date": entry.check_out_date,
+            "status": entry.status.value if hasattr(entry.status, "value") else str(entry.status),
+            "position": position,
+            "created_at": entry.created_at,
+            "updated_at": entry.updated_at,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Waitlist join error: {e}")
+        raise HTTPException(status_code=400, detail=f"Failed to join waitlist: {str(e)}")
 
 @router.get("/waitlist/my", response_model=list[WaitlistEntryResponse])
 async def my_waitlist(db: DBSession, current_user: VisitorUser):

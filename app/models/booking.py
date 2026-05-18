@@ -166,6 +166,7 @@ class Inquiry(BaseModel):
     message: Mapped[str] = mapped_column(Text)
 
 
+
 class WaitlistEntry(BaseModel):
     __tablename__ = "waitlist_entries"
 
@@ -182,3 +183,9 @@ class WaitlistEntry(BaseModel):
     booking_mode: Mapped[BookingMode] = mapped_column(Enum(BookingMode), index=True)
     status: Mapped[WaitlistStatus] = mapped_column(Enum(WaitlistStatus), index=True, default=WaitlistStatus.ACTIVE)
     notified_at: Mapped[date | None] = mapped_column(Date, nullable=True)
+    
+    # Add these relationships if missing
+    visitor: Mapped["User"] = relationship("User", foreign_keys=[visitor_id])
+    hostel: Mapped["Hostel"] = relationship("Hostel")
+    room: Mapped["Room"] = relationship("Room")
+    bed: Mapped["Bed | None"] = relationship("Bed")

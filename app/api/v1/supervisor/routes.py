@@ -180,11 +180,11 @@ async def update_maintenance(
     )
 
 
-@router.get("/notices", response_model=list[NoticeResponse])
-async def notices(current_user: SupervisorUser, db: DBSession):
-    """**List notices** for the supervisor's hostel."""
-    return await NoticeService(db).list_supervisor_notices(supervisor_id=current_user.id)
-
+@router.get("/notices")
+async def notices(current_user: SupervisorUser,db: DBSession,page: int = 1,per_page: int = 20,is_published: bool | None = None,):
+    """**List notices** for the supervisor's hostel with pagination."""
+    result = await NoticeService(db).list_supervisor_notices(supervisor_id=current_user.id,page=page,per_page=per_page,is_published=is_published,)
+    return result
 
 @router.post("/notices", response_model=NoticeResponse, status_code=201)
 async def create_notice(payload: NoticeCreateRequest, current_user: SupervisorUser, db: DBSession):

@@ -210,6 +210,13 @@ _TAGS_METADATA = [
         "name": "health",
         "description": "💚 **Health check** — server liveness probe.",
     },
+    {
+        "name": "reports",
+        "description": "📊 **Super Admin Reports** — comprehensive analytics and reporting. "
+                       "Financial reports, booking analytics, occupancy tracking, "
+                       "hostel performance metrics, and complaint analysis with "
+                       "CSV/JSON export capabilities.",
+    },
 ]
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -385,9 +392,11 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         }
     )
 
+# In app/main.py, update the pydantic validation exception handler:
+
 @app.exception_handler(PydanticValidationError)
 async def pydantic_validation_exception_handler(request: Request, exc: PydanticValidationError):
-    """Convert Pydantic validation errors to 400 Bad Request (not 422)"""
+    """Convert Pydantic validation errors to 400 Bad Request."""
     errors = []
     for error in exc.errors():
         errors.append({
@@ -396,6 +405,7 @@ async def pydantic_validation_exception_handler(request: Request, exc: PydanticV
             "type": error["type"]
         })
     
+    # Always return 400 for validation errors from our API
     return JSONResponse(
         status_code=status.HTTP_400_BAD_REQUEST,
         content={
@@ -403,9 +413,7 @@ async def pydantic_validation_exception_handler(request: Request, exc: PydanticV
             "code": "validation_error",
             "errors": errors
         }
-    )
-
-@app.exception_handler(404)
+    )@app.exception_handler(404)
 async def not_found_handler(request, exc):
     return JSONResponse(status_code=404, content={"detail": "Not found.", "code": "not_found"})
 

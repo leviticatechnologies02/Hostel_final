@@ -12,6 +12,7 @@ def register_middleware(app: FastAPI) -> None:
         "http://localhost:5173",
         "http://localhost:5174",
         "http://localhost:3000",
+        "http://localhost:8000",
         "https://hostelproject-eta.vercel.app",
         "https://*.vercel.app",  # Allow all Vercel preview deployments
     ]
@@ -26,10 +27,25 @@ def register_middleware(app: FastAPI) -> None:
         if origin not in unique_origins:
             unique_origins.append(origin)
     
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=unique_origins,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+    # For development, you can allow all origins
+    # This is useful for testing but should be restricted in production
+    if settings.app_env == "development":
+        # Allow all origins in development for easier testing
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=["*"],
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
+    else:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=unique_origins,
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+            expose_headers=["*"],
+        )
+    
+    print(f"CORS Middleware registered with origins: {unique_origins if settings.app_env != 'development' else ['*']}")

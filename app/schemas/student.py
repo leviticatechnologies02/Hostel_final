@@ -134,3 +134,9 @@ class StudentUpdateRequest(BaseModel):
     check_in_date: date | None = None
     check_out_date: date | None = None
     profile_picture_url: str | None = None
+    
+class StudentProfileUpdateRequest(BaseModel):
+    """Request model for updating student profile"""
+    full_name: str | None = Field(default=None, min_length=2, max_length=255)
+    phone: str | None = Field(default=None, min_length=8, max_length=30)
+    profile_picture_url: str | None = None

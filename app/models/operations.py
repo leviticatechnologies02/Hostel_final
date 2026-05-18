@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime, time
 from typing import TYPE_CHECKING
 
+from razorpay import Plan
 from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, ForeignKey, Numeric, String, Text, Time, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -170,11 +171,15 @@ class MessMenuItem(BaseModel):
     menu: Mapped[MessMenu] = relationship("MessMenu", back_populates="items")
 
 
+
 class Subscription(BaseModel):
     __tablename__ = "subscriptions"
 
     hostel_id: Mapped[str] = mapped_column(
         ForeignKey("hostels.id", ondelete="CASCADE"), index=True
+    )
+    plan_id: Mapped[str | None] = mapped_column(
+        ForeignKey("plans.id"), nullable=True, index=True
     )
     tier: Mapped[str] = mapped_column(String(50))
     price_monthly: Mapped[float] = mapped_column(Numeric(10, 2))
@@ -182,7 +187,10 @@ class Subscription(BaseModel):
     end_date: Mapped[date] = mapped_column(Date)
     status: Mapped[str] = mapped_column(String(50))
     auto_renew: Mapped[bool] = mapped_column(Boolean, default=False)
-
+    
+    # Relationships
+    hostel: Mapped[Hostel] = relationship("Hostel")
+    plan: Mapped[Plan | None] = relationship("Plan", back_populates="subscriptions")
 
 class Review(BaseModel):
     __tablename__ = "reviews"

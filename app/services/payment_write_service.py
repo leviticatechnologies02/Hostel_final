@@ -30,9 +30,15 @@ class PaymentWriteService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Booking not found.")
         if str(booking.visitor_id) != actor_id:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No booking access.")
-        if booking.status not in {BookingStatus.DRAFT, BookingStatus.PAYMENT_PENDING, BookingStatus.PENDING_APPROVAL, BookingStatus.APPROVED}:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Booking cannot accept payment.")
+        
+        # Allow payment for DRAFT or PAYMENT_PENDING bookings
+        if booking.status not in {BookingStatus.DRAFT, BookingStatus.PAYMENT_PENDING}:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, 
+                detail=f"Booking cannot accept payment. Current status: {booking.status.value}"
+            )
 
+        # If booking is in DRAFT, move to PAYMENT_PENDING
         if booking.status == BookingStatus.DRAFT:
             old_status = booking.status
             booking.status = BookingStatus.PAYMENT_PENDING
@@ -43,12 +49,22 @@ class PaymentWriteService:
                 changed_by=actor_id,
                 note="Payment initiated from draft booking.",
             )
+            await self.session.flush()
 
-        order = self.razorpay.create_order(
-            amount=payload.booking_advance,
-            receipt=str(booking.booking_number),
-            notes={"booking_id": str(booking.id), "visitor_id": actor_id},
-        )
+        # Create Razorpay order
+        try:
+            order = self.razorpay.create_order(
+                amount=payload.booking_advance,
+                receipt=str(booking.booking_number),
+                notes={"booking_id": str(booking.id), "visitor_id": actor_id},
+            )
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=f"Payment gateway error: {str(e)}"
+            )
+
+        # Create payment record
         payment = Payment(
             hostel_id=str(booking.hostel_id),
             booking_id=str(booking.id),
@@ -62,6 +78,7 @@ class PaymentWriteService:
         payment = await self.repository.create_payment(payment)
         await self.session.commit()
         await self.session.refresh(payment)
+        
         return {"payment": payment, "razorpay_order": order}
 
     async def handle_razorpay_webhook(

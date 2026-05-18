@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 from app.schemas.base import TimestampedResponse
 from typing import Optional
 from enum import Enum
+from sqlalchemy import func
 
 
 class BookingModeEnum(str, Enum):
@@ -146,7 +147,6 @@ class BookingStatusHistoryResponse(TimestampedResponse):
     changed_by: str | None
     note: str | None
 
-
 class WaitlistJoinRequest(BaseModel):
     hostel_id: str
     room_id: str
@@ -154,7 +154,15 @@ class WaitlistJoinRequest(BaseModel):
     booking_mode: BookingModeEnum
     check_in_date: date
     check_out_date: date
-
+    
+    @model_validator(mode="after")
+    def validate_dates(self) -> "WaitlistJoinRequest":
+        from datetime import date as date_type
+        if self.check_out_date <= self.check_in_date:
+            raise ValueError("check_out_date must be after check_in_date")
+        if self.check_in_date < date_type.today():
+            raise ValueError("check_in_date cannot be in the past")
+        return self
 
 class WaitlistEntryResponse(TimestampedResponse):
     id: str

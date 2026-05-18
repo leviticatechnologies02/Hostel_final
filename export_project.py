@@ -11,7 +11,6 @@ IGNORE = {
     ".gitignore",
     "__pycache__",
     "node_modules",
-    ".env",
     ".venv",
     "venv",
     ".DS_Store"

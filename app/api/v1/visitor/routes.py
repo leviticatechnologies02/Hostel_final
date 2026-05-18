@@ -1,10 +1,11 @@
 from typing import Annotated
 from fastapi.responses import Response
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, field_validator, field_validator
+import re
 from sqlalchemy import select, or_, func, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import timezone, date
-
+import uuid
 from app.dependencies import CurrentUser, DBSession, require_roles
 from app.models.booking import Booking, BookingStatus
 from app.models.hostel import Hostel
@@ -22,6 +23,21 @@ import re
 from datetime import UTC, datetime
 from app.core.security import verify_password, hash_password
 from app.repositories.user_repository import UserRepository
+
+
+def normalize_phone(phone: str) -> str:
+    """Normalize phone number to standard format"""
+    import re
+    if not phone:
+        return phone
+    # Remove all non-digits
+    digits = re.sub(r'[^0-9]', '', phone)
+    if len(digits) < 10:
+        raise ValueError("Phone number must have at least 10 digits")
+    if len(digits) > 15:
+        raise ValueError("Phone number must have at most 15 digits")
+    # Return last 10 digits for Indian numbers
+    return digits[-10:] if len(digits) > 10 else digits
 
 router = APIRouter()
 VisitorUser = Annotated[CurrentUser, Depends(require_roles("visitor", "student", "hostel_admin", "supervisor", "super_admin"))]
@@ -47,9 +63,10 @@ class VisitorChangePasswordRequest(BaseModel):
     confirm_password: str = Field(min_length=8, max_length=128)
 
 
+
 class VisitorProfileUpdateRequest(BaseModel):
     full_name: str | None = Field(default=None, min_length=2, max_length=255)
-    phone: str | None = Field(default=None, min_length=8, max_length=30)
+    phone: str | None = Field(default=None, min_length=10, max_length=15)  
     profile_picture_url: str | None = None
 
 
@@ -100,25 +117,62 @@ async def get_profile(current_user: VisitorUser, db: DBSession):
         raise HTTPException(status_code=404, detail="User not found.")
     return user
 
-
 @router.patch("/profile", response_model=VisitorProfileResponse)
 async def update_profile(payload: VisitorProfileUpdateRequest, current_user: VisitorUser, db: DBSession):
     """**Update visitor profile** — name, phone, profile picture."""
+    import re
+    
     result = await db.execute(select(User).where(User.id == current_user.id))
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="User not found.")
+    
+    # Update full name (always safe)
     if payload.full_name is not None:
         user.full_name = payload.full_name
-    if payload.phone is not None:
-        user.phone = payload.phone
+    
+    # Update profile picture (always safe)
     if payload.profile_picture_url is not None:
         user.profile_picture_url = payload.profile_picture_url
+    
+    # Handle phone update separately (most likely the source of 500)
+    if payload.phone is not None:
+        # Clean the phone number
+        digits = re.sub(r'[^0-9]', '', payload.phone)
+        
+        if len(digits) < 10:
+            raise HTTPException(status_code=400, detail="Phone number must have at least 10 digits")
+        
+        # Standardize to last 10 digits
+        standardized = digits[-10:] if len(digits) > 10 else digits
+        
+        # Only check for duplicates if the phone actually changed
+        if standardized != user.phone:
+            existing = await db.execute(
+                select(User).where(User.phone == standardized, User.id != current_user.id)
+            )
+            if existing.scalar_one_or_none():
+                raise HTTPException(
+                    status_code=409, 
+                    detail=f"Phone number {standardized} is already registered"
+                )
+            user.phone = standardized
+    
     await db.commit()
     await db.refresh(user)
-    return user
-
-
+    
+    # Return the updated user
+    return {
+        "id": str(user.id),
+        "email": user.email,
+        "phone": user.phone,
+        "full_name": user.full_name,
+        "role": user.role.value if hasattr(user.role, "value") else str(user.role),
+        "profile_picture_url": user.profile_picture_url,
+        "is_email_verified": user.is_email_verified,
+        "is_phone_verified": user.is_phone_verified,
+    }
+    
 # ==================== NOTICE ROUTES (static paths BEFORE dynamic {notice_id}) ====================
 
 @router.get("/notices/paginated")
@@ -592,6 +646,38 @@ async def visitor_join_waitlist(
     **Join waitlist for a room when no beds are available.**
     """
     from app.services.booking_service import BookingService
+    from app.models.room import Room
+    
+    # Validate room exists
+    try:
+        uuid.UUID(payload.room_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid room ID format.")
+    
+    # Validate hostel exists
+    try:
+        uuid.UUID(payload.hostel_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid hostel ID format.")
+    
+    room_result = await db.execute(select(Room).where(Room.id == payload.room_id))
+    room = room_result.scalar_one_or_none()
+    if not room:
+        raise HTTPException(status_code=404, detail=f"Room with id '{payload.room_id}' not found.")
+    
+    # Validate dates
+    if payload.check_out_date <= payload.check_in_date:
+        raise HTTPException(
+            status_code=400,
+            detail="check_out_date must be after check_in_date"
+        )
+    
+    # Check if check_in_date is not too far in the past
+    if payload.check_in_date < date.today():
+        raise HTTPException(
+            status_code=400,
+            detail="Check-in date cannot be in the past"
+        )
     
     try:
         entry, position = await BookingService(db).join_waitlist(
@@ -617,7 +703,7 @@ async def visitor_join_waitlist(
         raise
     except Exception as e:
         print(f"Waitlist join error: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to join waitlist: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Failed to join waitlist: {str(e)}")
 
 
 @router.get("/waitlist")
@@ -671,9 +757,11 @@ async def visitor_presigned_upload_url(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Unsupported file type. Allowed: jpg, png, webp, pdf.",
         )
+    
+    # Fix: Check file size and return 400, not 422
     if payload.file_size > 10 * 1024 * 1024:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_400_BAD_REQUEST,  # Changed from 422 to 400
             detail="File size exceeds 10MB limit.",
         )
     

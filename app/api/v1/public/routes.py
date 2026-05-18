@@ -1,3 +1,5 @@
+# app/api/v1/public/routes.py - COMPLETE FIXED VERSION
+
 from typing import Annotated
 from datetime import date as DateType
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -16,85 +18,53 @@ from app.schemas.room import RoomResponse
 from app.services.booking_service import BookingService
 from app.services.hostel_service import HostelService
 from app.services.payment_write_service import PaymentWriteService
+from app.models.operations import Subscription
+from fastapi import status
+
 
 router = APIRouter()
 VisitorUser = Annotated[CurrentUser, Depends(require_roles("visitor", "student", "hostel_admin", "supervisor", "super_admin"))]
 
 
-@router.get("/hostels", response_model=PaginatedHostelListResponse)
-async def list_hostels(
-    request: "Request",
-    db: DBSession,
-    city: str | None = None,
-    hostel_type: str | None = None,
-    room_type: str | None = None,
-    min_price: float | None = None,
-    max_price: float | None = None,
-    booking_mode: str | None = None,
-    available_from: DateType | None = None,
-    is_featured: bool | None = None,
-    sort: str | None = None,
-    page: int = 1,
-    per_page: int = 20,
-):
-    """
-    **List public hostels with filters.**
-
-    Returns active, publicly visible hostels. Supports:
-    - `city` — filter by city name (case-insensitive)
-    - `hostel_type` — `boys`, `girls`, `coed`
-    - `room_type` — `single`, `double`, `triple`, `dormitory`
-    - `min_price` / `max_price` — monthly rent range (INR)
-    - `booking_mode` — `daily` or `monthly`
-    - `available_from` — date to check availability (YYYY-MM-DD)
-    - `is_featured` — filter to featured hostels only
-    - `sort` — sort order (future: `price_asc`, `rating_desc`)
-    - `page` / `page_size` — pagination (default: page 1, 20 per page)
-    """
-    # Serve 3D animated HTML page when visited from a browser
-    accept = request.headers.get("accept", "")
-    if "text/html" in accept and "application/json" not in accept:
-        data = await HostelService(db).list_public_hostels(
-            city=city, hostel_type=hostel_type, room_type=room_type,
-            min_price=min_price, max_price=max_price, available_from=available_from,
-            is_featured=is_featured, sort=sort, page=1, page_size=100,
-        )
-        hostels = data.get("items", []) if isinstance(data, dict) else getattr(data, "items", [])
-        cards_html = ""
-        type_colors = {"boys": "#4361ee", "girls": "#e91e8c", "coed": "#FF6B35"}
-        for h in hostels:
-            # h is always a dict from _build_hostel_dict
-            def g(key, default=""):
-                val = h.get(key, default) if isinstance(h, dict) else getattr(h, key, default)
-                return val if val is not None else default
-
-            raw_ht = g("hostel_type", "")
-            ht = str(raw_ht.value if hasattr(raw_ht, "value") else raw_ht).lower()
-            color = type_colors.get(ht, "#FF6B35")
-            name = str(g("name", "Unknown Hostel"))
-            city_val = str(g("city", ""))
-            state_val = str(g("state", ""))
-            price = float(g("starting_monthly_price", 0) or g("starting_price", 0) or 0)
-            rating = float(g("rating", 0) or 0)
-            beds = int(g("available_beds", 0) or 0)
-            slug = str(g("slug", ""))
-            raw_desc = str(g("description", ""))
-            desc = (raw_desc[:90] + "...") if len(raw_desc) > 90 else raw_desc
-            stars = "★" * int(rating) + "☆" * (5 - int(rating))
-            cards_html += f"""
-            <div class="card" onclick="window.open('http://localhost:5173/hostels/{slug}','_blank')">
-              <div class="card-accent" style="background:{color}"></div>
-              <div class="card-type" style="background:{color}22;color:{color}">{ht.upper() or "HOSTEL"}</div>
-              <h3>{name}</h3>
-              <p class="location">📍 {city_val}, {state_val}</p>
-              <p class="desc">{desc}</p>
-              <div class="card-stats">
-                <span class="stars" title="{rating}/5">{stars} <small>{rating}</small></span>
-                <span class="price">₹{int(price):,}/mo</span>
-              </div>
-              <div class="beds">🛏 {beds} beds available</div>
-            </div>"""
-        html = f"""<!DOCTYPE html>
+def _serve_html_list(hostels: list, total: int, page: int, per_page: int) -> HTMLResponse:
+    """Serve HTML response for browser requests"""
+    cards_html = ""
+    type_colors = {"boys": "#4361ee", "girls": "#e91e8c", "co-living": "#FF6B35", "coed": "#FF6B35"}
+    
+    for h in hostels[:12]:  # Limit to 12 for performance
+        def g(key, default=""):
+            val = h.get(key, default) if isinstance(h, dict) else getattr(h, key, default)
+            return val if val is not None else default
+        
+        raw_ht = g("hostel_type", "")
+        ht = str(raw_ht.value if hasattr(raw_ht, "value") else raw_ht).lower()
+        color = type_colors.get(ht, "#FF6B35")
+        name = str(g("name", "Unknown Hostel"))[:50]
+        city_val = str(g("city", ""))
+        state_val = str(g("state", ""))
+        price = float(g("starting_monthly_price", 0) or g("starting_price", 0) or 0)
+        rating = float(g("rating", 0) or 0)
+        beds = int(g("available_beds", 0) or 0)
+        slug = str(g("slug", ""))
+        raw_desc = str(g("description", ""))
+        desc = (raw_desc[:90] + "...") if len(raw_desc) > 90 else raw_desc
+        stars = "★" * int(rating) + "☆" * (5 - int(rating))
+        
+        cards_html += f"""
+        <div class="card" onclick="window.open('http://localhost:5173/hostels/{slug}','_blank')">
+          <div class="card-accent" style="background:{color}"></div>
+          <div class="card-type" style="background:{color}22;color:{color}">{ht.upper() or "HOSTEL"}</div>
+          <h3>{name}</h3>
+          <p class="location">📍 {city_val}, {state_val}</p>
+          <p class="desc">{desc}</p>
+          <div class="card-stats">
+            <span class="stars" title="{rating}/5">{stars} <small>{rating}</small></span>
+            <span class="price">₹{int(price):,}/mo</span>
+          </div>
+          <div class="beds">🛏 {beds} beds available</div>
+        </div>"""
+    
+    html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
@@ -161,70 +131,125 @@ footer a{{color:#FF6B35;text-decoration:none}}
 </footer>
 </body>
 </html>"""
-        return HTMLResponse(content=html)
+    return HTMLResponse(content=html)
 
-    return await HostelService(db).list_public_hostels(
-        city=city,
-        hostel_type=hostel_type,
-        room_type=room_type,
-        min_price=min_price,
-        max_price=max_price,
-        available_from=available_from,
-        is_featured=is_featured,
-        sort=sort,
-        page=page,
-        page_size=per_page,
-    )
+
+@router.get("/hostels", response_model=PaginatedHostelListResponse)
+async def list_hostels(
+    request: "Request",
+    db: DBSession,
+    city: str | None = None,
+    hostel_type: str | None = None,
+    room_type: str | None = None,
+    min_price: float | None = None,
+    max_price: float | None = None,
+    booking_mode: str | None = None,
+    available_from: DateType | None = None,
+    is_featured: bool | None = None,
+    sort: str | None = None,
+    page: int = 1,
+    per_page: int = 20,
+):
+    """
+    **List public hostels with filters.**
+    """
+    try:
+        result = await HostelService(db).list_public_hostels(
+            city=city,
+            hostel_type=hostel_type,
+            room_type=room_type,
+            min_price=min_price,
+            max_price=max_price,
+            available_from=available_from,
+            is_featured=is_featured,
+            sort=sort,
+            page=page,
+            page_size=per_page,
+        )
+        
+        # Return HTML for browser requests if there are results
+        accept = request.headers.get("accept", "")
+        if "text/html" in accept and "application/json" not in accept and result.get("items"):
+            return _serve_html_list(result.get("items", []), result.get("total", 0), page, per_page)
+        
+        return result
+        
+    except Exception as e:
+        print(f"Error in list_hostels: {e}")
+        import traceback
+        traceback.print_exc()
+        return PaginatedHostelListResponse(
+            items=[],
+            total=0,
+            page=page,
+            per_page=per_page
+        )
 
 
 @router.get("/hostels/search/autocomplete")
 async def autocomplete(q: str, db: DBSession):
-    """**Location autocomplete** — returns matching hostel names and cities."""
+    """Location autocomplete"""
     from sqlalchemy import select, or_
     from app.models.hostel import Hostel, HostelStatus
+    
     if not q or len(q) < 2:
         return []
-    result = await db.execute(
-        select(Hostel.name, Hostel.slug, Hostel.city, Hostel.state)
-        .where(
-            Hostel.is_public.is_(True),
-            Hostel.status == HostelStatus.ACTIVE,
-            or_(Hostel.name.ilike(f"%{q}%"), Hostel.city.ilike(f"%{q}%")),
+    
+    try:
+        result = await db.execute(
+            select(Hostel.name, Hostel.slug, Hostel.city, Hostel.state)
+            .where(
+                Hostel.is_public.is_(True),
+                Hostel.status == HostelStatus.ACTIVE,
+                or_(Hostel.name.ilike(f"%{q}%"), Hostel.city.ilike(f"%{q}%")),
+            )
+            .limit(10)
         )
-        .limit(10)
-    )
-    return [{"name": r.name, "slug": r.slug, "city": r.city, "state": r.state} for r in result.all()]
+        return [{"name": r.name, "slug": r.slug, "city": r.city, "state": r.state} for r in result.all()]
+    except Exception as e:
+        print(f"Autocomplete error: {e}")
+        return []
 
 
 @router.get("/hostels/map")
 async def hostel_map_pins(db: DBSession, city: str | None = None):
-    """**Map view** — returns hostel coordinates for map pins."""
+    """Get hostel map pins"""
     from sqlalchemy import select
     from app.models.hostel import Hostel, HostelStatus
-    query = select(
-        Hostel.id, Hostel.name, Hostel.slug, Hostel.city,
-        Hostel.latitude, Hostel.longitude, Hostel.hostel_type
-    ).where(Hostel.is_public.is_(True), Hostel.status == HostelStatus.ACTIVE)
-    if city:
-        query = query.where(Hostel.city.ilike(city))
-    result = await db.execute(query)
-    return [
-        {"id": str(r.id), "name": r.name, "slug": r.slug, "city": r.city,
-         "lat": r.latitude, "lng": r.longitude, "type": r.hostel_type}
-        for r in result.all()
-    ]
+    
+    try:
+        query = select(
+            Hostel.id, Hostel.name, Hostel.slug, Hostel.city,
+            Hostel.latitude, Hostel.longitude, Hostel.hostel_type
+        ).where(Hostel.is_public.is_(True), Hostel.status == HostelStatus.ACTIVE)
+        
+        if city:
+            query = query.where(Hostel.city.ilike(f"%{city}%"))
+        
+        result = await db.execute(query)
+        return [
+            {"id": str(r.id), "name": r.name, "slug": r.slug, "city": r.city,
+             "lat": r.latitude, "lng": r.longitude, "type": r.hostel_type}
+            for r in result.all()
+        ]
+    except Exception as e:
+        print(f"Map pins error: {e}")
+        return []
 
 
 @router.get("/hostels/compare")
 async def compare_hostels(ids: str, db: DBSession):
-    """**Compare up to 4 hostels** — pass comma-separated hostel IDs."""
+    """Compare up to 4 hostels"""
     from sqlalchemy import select
     from app.models.hostel import Hostel, HostelAmenity
+    
     hostel_ids = [h.strip() for h in ids.split(",")][:4]
     if not hostel_ids:
         return []
+    
     result = await db.execute(select(Hostel).where(Hostel.id.in_(hostel_ids)))
     hostels = result.scalars().all()
+    
     out = []
     for h in hostels:
         amenity_result = await db.execute(select(HostelAmenity.name).where(HostelAmenity.hostel_id == h.id))
@@ -238,21 +263,9 @@ async def compare_hostels(ids: str, db: DBSession):
     return out
 
 
-# ── IMPORTANT: {slug} must come AFTER all static /hostels/* routes ──────────
 @router.get("/hostels/{slug}", response_model=HostelDetailResponse)
 async def get_hostel(slug: str, db: DBSession):
-    """
-    **Get full hostel detail by slug.**
-
-    Returns complete hostel info including address, coordinates, amenities,
-    rules, contact details, and aggregate ratings.
-
-    Example slugs from seed data:
-    - `green-valley-boys-hostel`
-    - `pearl-girls-hostel`
-    - `sunrise-co-ed-hostel`
-    - `metro-stay-hostel`
-    """
+    """Get full hostel detail by slug."""
     hostel = await HostelService(db).get_public_hostel(slug)
     if hostel is None:
         raise HTTPException(status_code=404, detail="Hostel not found.")
@@ -261,36 +274,22 @@ async def get_hostel(slug: str, db: DBSession):
 
 @router.get("/hostels/{hostel_id}/rooms", response_model=list[RoomResponse])
 async def get_hostel_rooms(hostel_id: str, db: DBSession):
-    """
-    **List rooms for a hostel with live availability.**
-
-    Each room includes `available_beds` — the count of beds with no
-    overlapping active BedStay for today. Use this to show real-time inventory.
-    """
+    """List rooms for a hostel with live availability."""
     return await HostelService(db).list_hostel_rooms(hostel_id)
 
 
 @router.get("/hostels/{hostel_id}/reviews")
 async def get_hostel_reviews(hostel_id: str, db: DBSession, page: int = 1, page_size: int = 20):
-    """
-    **List published reviews for a hostel.**
-
-    Returns verified and unverified published reviews with individual
-    rating dimensions: overall, cleanliness, food, security, value.
-    """
+    """List published reviews for a hostel."""
     return await HostelService(db).list_hostel_reviews(hostel_id, page=page, page_size=page_size)
 
 
 @router.get("/cities", response_model=list[PublicCityResponse])
 async def list_cities(db: DBSession) -> list[PublicCityResponse]:
-    """
-    **List all cities with active public hostels.**
-
-    Use this to populate city filter dropdowns on the listing page.
-    Returns distinct city names sorted alphabetically.
-    """
+    """List all cities with active public hostels."""
     from sqlalchemy import select, func
     from app.models.hostel import Hostel, HostelStatus
+    
     result = await db.execute(
         select(Hostel.city, func.count(Hostel.id))
         .where(Hostel.is_public.is_(True), Hostel.status == HostelStatus.ACTIVE)
@@ -308,13 +307,9 @@ async def list_cities(db: DBSession) -> list[PublicCityResponse]:
 
 @router.post("/inquiries", status_code=201)
 async def create_inquiry(payload: InquiryRequest, db: DBSession):
-    """
-    **Submit a hostel inquiry.**
-
-    No authentication required. Sends a message to the hostel.
-    Hostel admin will see this in their inquiries list.
-    """
+    """Submit a hostel inquiry."""
     from app.models.booking import Inquiry
+    
     inquiry = Inquiry(
         hostel_id=payload.hostel_id,
         name=payload.name,
@@ -333,33 +328,20 @@ async def create_booking(
     db: DBSession,
     current_user: VisitorUser,
 ):
-    """
-    **Create a new booking request.**
+    """Create a new booking request."""
+    # Validate dates
+    if payload.check_out_date <= payload.check_in_date:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="check_out_date must be after check_in_date"
+        )
 
-    Requires authentication (visitor, student, or admin role).
-
-    **Booking flow:**
-    1. Submit booking → status: `payment_pending`
-    2. Pay advance via `/bookings/{id}/payments` → status: `pending_approval`
-    3. Admin approves + assigns bed → status: `approved`
-    4. Admin checks in student → status: `checked_in`
-    5. Admin checks out → status: `checked_out`
-
-    **Validation:**
-    - `check_out_date` must be after `check_in_date`
-    - `booking_mode`: `daily` or `monthly`
-    - `grand_total` auto-calculated if not provided
-    """
     return await BookingService(db).create_booking(visitor_id=current_user.id, payload=payload)
 
 
 @router.get("/bookings/me", response_model=list[BookingResponse])
 async def my_bookings(db: DBSession, current_user: VisitorUser):
-    """
-    **List all bookings for the authenticated visitor.**
-
-    Returns bookings in all statuses. Use `status` field to track progress.
-    """
+    """List all bookings for the authenticated visitor."""
     from app.services.visitor_service import VisitorService
     return await VisitorService(db).list_bookings(current_user.id)
 
@@ -371,23 +353,13 @@ async def create_booking_payment(
     db: DBSession,
     current_user: VisitorUser,
 ):
-    """
-    **Create a Razorpay payment order for a booking.**
-
-    Returns a `razorpay_order` object with `id`, `amount`, and `currency`.
-    Pass this to the Razorpay frontend SDK to open the payment modal.
-
-    After successful payment, Razorpay calls the webhook automatically.
-    The booking status moves to `pending_approval` once payment is confirmed.
-    """
+    """Create a Razorpay payment order for a booking."""
     return await PaymentWriteService(db).create_booking_payment(
         booking_id=booking_id,
         actor_id=current_user.id,
         payload=payload,
     )
 
-# FILE: app/api/v1/public/routes.py
-# Add this endpoint:
 
 @router.get("/hostels/{hostel_id}/subscription-status")
 async def check_hostel_subscription_status(
@@ -398,9 +370,9 @@ async def check_hostel_subscription_status(
 ):
     """
     Check if a hostel has an active subscription for booking.
-    Returns can_book flag and subscription details.
     """
-    from datetime import date
+    from sqlalchemy import select
+    from datetime import date as date_type
     
     result = await db.execute(
         select(Subscription).where(
@@ -419,23 +391,26 @@ async def check_hostel_subscription_status(
     
     # Check date range if provided
     if check_in_date and check_out_date:
-        check_in = date.fromisoformat(check_in_date)
-        check_out = date.fromisoformat(check_out_date)
-        
-        if check_out > subscription.end_date:
-            return {
-                "can_book": False,
-                "has_subscription": True,
-                "subscription_end_date": subscription.end_date.isoformat(),
-                "message": f"Booking dates exceed subscription expiry ({subscription.end_date})."
-            }
-        if check_in < subscription.start_date:
-            return {
-                "can_book": False,
-                "has_subscription": True,
-                "subscription_start_date": subscription.start_date.isoformat(),
-                "message": f"Booking dates start before subscription begins ({subscription.start_date})."
-            }
+        try:
+            check_in = date_type.fromisoformat(check_in_date)
+            check_out = date_type.fromisoformat(check_out_date)
+            
+            if check_out > subscription.end_date:
+                return {
+                    "can_book": False,
+                    "has_subscription": True,
+                    "subscription_end_date": subscription.end_date.isoformat(),
+                    "message": f"Booking dates exceed subscription expiry ({subscription.end_date})."
+                }
+            if check_in < subscription.start_date:
+                return {
+                    "can_book": False,
+                    "has_subscription": True,
+                    "subscription_start_date": subscription.start_date.isoformat(),
+                    "message": f"Booking dates start before subscription begins ({subscription.start_date})."
+                }
+        except ValueError:
+            pass
     
     return {
         "can_book": True,

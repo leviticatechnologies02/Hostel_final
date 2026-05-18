@@ -186,16 +186,15 @@ class AdminService:
         
         if payload.bed_number in existing_bed_numbers:
             raise HTTPException(
-                status_code=409,  # Conflict - duplicate bed number
+                status_code=409,
                 detail=f"Bed number '{payload.bed_number}' already exists in this room."
             )
         
-        # Check if room is at capacity
+        # Instead of erroring at capacity, just increase total_beds
         if len(existing_beds) >= room.total_beds:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Cannot add more beds. Room has capacity of {room.total_beds} beds."
-            )
+            # Auto-increase capacity
+            room.total_beds += 1
+            print(f"⚠️ Auto-increased room {room.room_number} capacity to {room.total_beds}")
         
         bed = Bed(
             hostel_id=room.hostel_id,
@@ -204,10 +203,6 @@ class AdminService:
             status=payload.status or BedStatus.AVAILABLE,
         )
         self.session.add(bed)
-        
-        # Update room total_beds
-        room.total_beds += 1
-        
         await self.session.commit()
         await self.session.refresh(bed)
         return bed

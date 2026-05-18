@@ -156,24 +156,62 @@ async def get_detailed_student_profile(current_user: StudentUser, db: DBSession)
     }
 
 @router.patch("/profile")
-async def update_profile(payload: "StudentProfileUpdateRequest", current_user: StudentUser, db: DBSession):  # Using string reference
+async def update_profile(
+    request: Request,  # Use Request to get raw body
+    current_user: StudentUser, 
+    db: DBSession
+):
     """**Update student profile** — name, phone, profile picture."""
     from sqlalchemy import select
     from app.models.user import User
-    from app.schemas.student import StudentProfileUpdateRequest
+    
+    # Parse body manually
+    try:
+        body = await request.json()
+    except:
+        body = {}
     
     result = await db.execute(select(User).where(User.id == current_user.id))
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="User not found.")
-    if payload.full_name:
-        user.full_name = payload.full_name
-    if payload.phone:
-        user.phone = payload.phone
-    if payload.profile_picture_url is not None:
-        user.profile_picture_url = payload.profile_picture_url
+    
+    # Update full name
+    if "full_name" in body and body["full_name"] is not None:
+        user.full_name = body["full_name"]
+    
+    # Update phone
+    if "phone" in body and body["phone"] is not None:
+        # Validate phone format
+        import re
+        phone = body["phone"]
+        digits_only = re.sub(r'[^0-9]', '', phone)
+        if len(digits_only) < 10 or len(digits_only) > 13:
+            raise HTTPException(
+                status_code=400,
+                detail="Phone number must have between 10 and 13 digits."
+            )
+        # Check if phone is already taken
+        existing = await db.execute(
+            select(User).where(
+                User.phone == phone,
+                User.id != current_user.id
+            )
+        )
+        if existing.scalar_one_or_none():
+            raise HTTPException(
+                status_code=409,
+                detail="Phone number already registered by another user."
+            )
+        user.phone = phone
+    
+    # Update profile picture
+    if "profile_picture_url" in body and body["profile_picture_url"] is not None:
+        user.profile_picture_url = body["profile_picture_url"]
+    
     await db.commit()
     await db.refresh(user)
+    
     return {
         "id": str(user.id),
         "full_name": user.full_name,
@@ -181,8 +219,6 @@ async def update_profile(payload: "StudentProfileUpdateRequest", current_user: S
         "phone": user.phone,
         "profile_picture_url": user.profile_picture_url
     }
-
-
 # ==================== PAYMENT & BOOKING ====================
 
 @router.get("/payments", response_model=list[PaymentResponse])

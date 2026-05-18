@@ -24,6 +24,7 @@ from app.models.booking import (  # noqa: F401
     WaitlistEntry,
     WaitlistStatus,
 )
+from app.models.plan import Plan, PlanFeature, PlanStatus, DurationType  # noqa: F401
 from app.models.student import Student, StudentStatus  # noqa: F401
 from app.models.payment import Payment, PaymentWebhookEvent  # noqa: F401
 from app.models.operations import (  # noqa: F401
@@ -55,9 +56,11 @@ __all__ = [
     # student
     "Student", "StudentStatus",
     # payment
+    "Plan", "PlanFeature", "PlanStatus", "DurationType",
     "Payment", "PaymentWebhookEvent",
     # operations
     "Complaint", "ComplaintComment", "AttendanceRecord",
     "MaintenanceRequest", "Notice", "MessMenu", "MessMenuItem",
-    "Subscription", "Review", "NoticeRead",
+    "Subscription", "Review", "Notice", "NoticeRead", 
+
 ]

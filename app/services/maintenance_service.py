@@ -153,6 +153,10 @@ class MaintenanceService:
         await self.session.refresh(request)
         return request
 
+    async def list_admin_requests(self, *, hostel_id: str):
+        """List maintenance requests for admin view."""
+        return await self.maintenance.list_by_hostel(hostel_id)
+
     async def update_admin_request(
         self, *, admin_id: str, request_id: str, payload: MaintenanceUpdateRequest
     ) -> MaintenanceRequest:

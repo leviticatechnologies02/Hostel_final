@@ -292,7 +292,7 @@ async def update_bed(
     current_user: AdminUser
 ):
     """Update bed details (status, bed number)."""
-    from sqlalchemy import slect
+    from sqlalchemy import select
     from sqlalchemy.exc import IntegrityError
     from app.models.room import Bed, BedStatus
     

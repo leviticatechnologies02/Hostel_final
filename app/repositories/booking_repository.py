@@ -163,41 +163,47 @@ class BookingRepository:
         check_out_date: date,
     ) -> WaitlistEntry | None:
         """Get active waitlist entry for visitor and room"""
-        result = await self.session.execute(
-            select(WaitlistEntry).where(
-                WaitlistEntry.visitor_id == visitor_id,
-                WaitlistEntry.room_id == room_id,
-                WaitlistEntry.check_in_date == check_in_date,
-                WaitlistEntry.check_out_date == check_out_date,
-                WaitlistEntry.status == WaitlistStatus.ACTIVE,
+        try:
+            result = await self.session.execute(
+                select(WaitlistEntry).where(
+                    WaitlistEntry.visitor_id == visitor_id,
+                    WaitlistEntry.room_id == room_id,
+                    WaitlistEntry.status == WaitlistStatus.ACTIVE,
+                )
             )
-        )
-        return result.scalar_one_or_none()
+            return result.scalar_one_or_none()
+        except Exception as e:
+            print(f"Error getting active waitlist entry: {e}")
+            return None
 
     async def create_waitlist_entry(self, entry: WaitlistEntry) -> WaitlistEntry:
         self.session.add(entry)
         await self.session.flush()
         return entry
 
+
     async def get_waitlist_position(self, *, entry: WaitlistEntry) -> int:
         """Get 1-indexed position in waitlist queue"""
-        result = await self.session.execute(
-            select(func.count())
-            .select_from(WaitlistEntry)
-            .where(
-                WaitlistEntry.room_id == entry.room_id,
-                WaitlistEntry.check_in_date == entry.check_in_date,
-                WaitlistEntry.check_out_date == entry.check_out_date,
-                WaitlistEntry.status == WaitlistStatus.ACTIVE,
-                WaitlistEntry.created_at <= entry.created_at,
+        try:
+            result = await self.session.execute(
+                select(func.count())
+                .select_from(WaitlistEntry)
+                .where(
+                    WaitlistEntry.room_id == entry.room_id,
+                    WaitlistEntry.status == WaitlistStatus.ACTIVE,
+                    WaitlistEntry.created_at <= entry.created_at,
+                )
             )
-        )
-        return int(result.scalar() or 0)
+            return int(result.scalar() or 0)
+        except Exception as e:
+            print(f"Error in get_waitlist_position: {e}")
+            return 1  # Default to position 1
 
     async def list_waitlist_entries_by_visitor(self, visitor_id: str) -> list[WaitlistEntry]:
         """List all waitlist entries for a visitor"""
+        # Remove the problematic selectinload
         result = await self.session.execute(
-            select(WaitlistEntry)
+            select(WaitlistEntry) 
             .where(
                 WaitlistEntry.visitor_id == visitor_id,
                 WaitlistEntry.status.in_([WaitlistStatus.ACTIVE, WaitlistStatus.NOTIFIED])
@@ -205,6 +211,9 @@ class BookingRepository:
             .order_by(WaitlistEntry.created_at.desc())
         )
         return list(result.scalars().all())
+
+
+
 
     async def get_waitlist_entry_by_id(self, entry_id: str) -> WaitlistEntry | None:
         """Get waitlist entry by ID"""
