@@ -1,12 +1,9 @@
-# app/core/database.py - FIXED VERSION
-
 from collections.abc import AsyncGenerator
 import ssl
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy import text  # Add this import
+from sqlalchemy import text
 from app.config import get_settings
-import asyncio
 
 settings = get_settings()
 
@@ -18,22 +15,22 @@ ssl_context.verify_mode = ssl.CERT_NONE
 # Create engine with OPTIMIZED settings for remote database
 engine = create_async_engine(
     settings.database_url,
-    echo=False,  # Disable echo for production
+    echo=False,
     future=True,
-    pool_size=5,  # Smaller pool for remote connection
-    max_overflow=10,
-    pool_timeout=30,  # Longer timeout for remote
-    pool_pre_ping=True,  # Verify connections before using
-    pool_recycle=3600,  # Recycle connections every hour
+    pool_size=settings.database_pool_size,
+    max_overflow=settings.database_max_overflow,
+    pool_timeout=settings.database_pool_timeout,
+    pool_pre_ping=settings.database_pool_pre_ping,
+    pool_recycle=3600,
     connect_args={
         "ssl": ssl_context,
         "server_settings": {
             "application_name": "stayease_api",
-            "statement_timeout": "30000",  # 30 second statement timeout
-            "idle_in_transaction_session_timeout": "60000",  # 60 second idle timeout
+            "statement_timeout": "30000",
+            "idle_in_transaction_session_timeout": "60000",
         },
-        "timeout": 30,  # Connection timeout
-        "command_timeout": 30,  # Command timeout
+        "timeout": 30,
+        "command_timeout": 30,
     }
 )
 
@@ -46,7 +43,7 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """Dependency that provides a database session."""
     async with AsyncSessionLocal() as session:
         try:
-            # Set a timeout for the session - FIXED: Use text() wrapper
+            # Set a timeout for the session
             await session.execute(text("SET statement_timeout = '30000'"))
             yield session
             await session.commit()

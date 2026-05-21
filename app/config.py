@@ -17,18 +17,17 @@ class Settings(BaseSettings):
         default="postgresql+asyncpg://stayease_db_0hw4_user:0L7DvsoMZ4ff88BYqohgiceUJITTSmJG@dpg-d7kaci4m0tmc73aeivm0-a.oregon-postgres.render.com:5432/stayease_db_0hw4"
     )
 
-    
     # Redis configuration
     redis_url: str = "redis://localhost:6379/0"
     
     # Database pool settings for production
-    database_pool_size: int = Field(default=20, description="Database connection pool size")
+    database_pool_size: int = Field(default=5, description="Database connection pool size")
     database_max_overflow: int = Field(default=10, description="Max overflow connections")
     database_pool_timeout: int = Field(default=30, description="Connection timeout in seconds")
     database_pool_pre_ping: bool = Field(default=True, description="Verify connections before using")
     
     # Security
-    secret_key: str = "change-me"
+    secret_key: str = "change-me-in-production-use-environment-variable"
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60
     refresh_token_expire_days: int = 30
@@ -84,7 +83,6 @@ class Settings(BaseSettings):
     def validate_database_url(cls, value: str) -> str:
         """Ensure database URL has asyncpg driver"""
         if value and "postgresql://" in value and "+asyncpg" not in value:
-            # Replace postgresql:// with postgresql+asyncpg://
             value = value.replace("postgresql://", "postgresql+asyncpg://")
         return value
     
