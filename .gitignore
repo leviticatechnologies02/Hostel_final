@@ -152,7 +152,7 @@ temp/
 *.swp
 *.swo
 *~
-.txt
+
 export_project.py
 debug_imports.py
 
