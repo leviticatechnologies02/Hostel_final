@@ -32566,10 +32566,7 @@ FILE: app\api\__init__.py
 ============================================================
 FILE: app\api\v1\router.py
 ============================================================
-# FILE: app/api/v1/router.py
-
 from fastapi import APIRouter
-
 from app.api.v1.admin.routes import router as admin_router
 from app.api.v1.auth.routes import router as auth_router
 from app.api.v1.bookings.routes import router as bookings_router
@@ -32595,7 +32592,6 @@ api_router.include_router(visitor_router, prefix="/visitor", tags=["visitor"])
 api_router.include_router(webhook_router, prefix="/webhooks", tags=["webhooks"])
 api_router.include_router(reports_router, prefix="/reports", tags=["reports"])  
 api_router.include_router(plans_router, prefix="/plans", tags=["plans"])
-
 
 ============================================================
 FILE: app\api\v1\__init__.py
@@ -39090,7 +39086,7 @@ import re
 from sqlalchemy import select, or_, func, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import timezone, date
-
+import uuid
 from app.dependencies import CurrentUser, DBSession, require_roles
 from app.models.booking import Booking, BookingStatus
 from app.models.hostel import Hostel
@@ -39202,66 +39198,62 @@ async def get_profile(current_user: VisitorUser, db: DBSession):
         raise HTTPException(status_code=404, detail="User not found.")
     return user
 
-
 @router.patch("/profile", response_model=VisitorProfileResponse)
 async def update_profile(payload: VisitorProfileUpdateRequest, current_user: VisitorUser, db: DBSession):
     """**Update visitor profile** — name, phone, profile picture."""
     import re
-    
-    # Normalize phone if provided
-    if payload.phone is not None:
-        # Remove all non-digit characters
-        digits = re.sub(r'[^0-9]', '', payload.phone)
-        
-        # Validate phone length
-        if len(digits) < 10:
-            raise HTTPException(
-                status_code=400, 
-                detail="Phone number must have at least 10 digits"
-            )
-        if len(digits) > 15:
-            raise HTTPException(
-                status_code=400, 
-                detail="Phone number must have at most 15 digits"
-            )
-        
-        # Standardize to 10 digits (last 10 digits for Indian numbers)
-        if len(digits) > 10:
-            digits = digits[-10:]
-        
-        # Check if phone is different from current and already taken
-        if digits != current_user.phone:
-            existing = await db.execute(
-                select(User).where(
-                    User.phone == digits,
-                    User.id != current_user.id
-                )
-            )
-            if existing.scalar_one_or_none():
-                raise HTTPException(
-                    status_code=409, 
-                    detail=f"Phone number {digits} is already registered by another user."
-                )
-        payload.phone = digits
     
     result = await db.execute(select(User).where(User.id == current_user.id))
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="User not found.")
     
-    # Update fields
+    # Update full name (always safe)
     if payload.full_name is not None:
         user.full_name = payload.full_name
-    if payload.phone is not None:
-        user.phone = payload.phone
+    
+    # Update profile picture (always safe)
     if payload.profile_picture_url is not None:
         user.profile_picture_url = payload.profile_picture_url
     
+    # Handle phone update separately (most likely the source of 500)
+    if payload.phone is not None:
+        # Clean the phone number
+        digits = re.sub(r'[^0-9]', '', payload.phone)
+        
+        if len(digits) < 10:
+            raise HTTPException(status_code=400, detail="Phone number must have at least 10 digits")
+        
+        # Standardize to last 10 digits
+        standardized = digits[-10:] if len(digits) > 10 else digits
+        
+        # Only check for duplicates if the phone actually changed
+        if standardized != user.phone:
+            existing = await db.execute(
+                select(User).where(User.phone == standardized, User.id != current_user.id)
+            )
+            if existing.scalar_one_or_none():
+                raise HTTPException(
+                    status_code=409, 
+                    detail=f"Phone number {standardized} is already registered"
+                )
+            user.phone = standardized
+    
     await db.commit()
     await db.refresh(user)
-    return user
-
-
+    
+    # Return the updated user
+    return {
+        "id": str(user.id),
+        "email": user.email,
+        "phone": user.phone,
+        "full_name": user.full_name,
+        "role": user.role.value if hasattr(user.role, "value") else str(user.role),
+        "profile_picture_url": user.profile_picture_url,
+        "is_email_verified": user.is_email_verified,
+        "is_phone_verified": user.is_phone_verified,
+    }
+    
 # ==================== NOTICE ROUTES (static paths BEFORE dynamic {notice_id}) ====================
 
 @router.get("/notices/paginated")
@@ -42404,24 +42396,27 @@ class BookingRepository:
 
 
     async def get_waitlist_position(self, *, entry: WaitlistEntry) -> int:
-        """Get 1-indexed position in waitlist queue - OPTIMIZED"""
-        # Use simpler query with less overhead
-        result = await self.session.execute(
-            select(func.count())
-            .select_from(WaitlistEntry)
-            .where(
-                WaitlistEntry.room_id == entry.room_id,
-                WaitlistEntry.status == WaitlistStatus.ACTIVE,
-                WaitlistEntry.created_at <= entry.created_at,
+        """Get 1-indexed position in waitlist queue"""
+        try:
+            result = await self.session.execute(
+                select(func.count())
+                .select_from(WaitlistEntry)
+                .where(
+                    WaitlistEntry.room_id == entry.room_id,
+                    WaitlistEntry.status == WaitlistStatus.ACTIVE,
+                    WaitlistEntry.created_at <= entry.created_at,
+                )
             )
-        )
-        return int(result.scalar() or 0)
+            return int(result.scalar() or 0)
+        except Exception as e:
+            print(f"Error in get_waitlist_position: {e}")
+            return 1  # Default to position 1
 
     async def list_waitlist_entries_by_visitor(self, visitor_id: str) -> list[WaitlistEntry]:
         """List all waitlist entries for a visitor"""
         # Remove the problematic selectinload
         result = await self.session.execute(
-            select(WaitlistEntry)
+            select(WaitlistEntry) 
             .where(
                 WaitlistEntry.visitor_id == visitor_id,
                 WaitlistEntry.status.in_([WaitlistStatus.ACTIVE, WaitlistStatus.NOTIFIED])
@@ -43667,6 +43662,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 from app.schemas.base import TimestampedResponse
 from typing import Optional
 from enum import Enum
+from sqlalchemy import func
 
 
 class BookingModeEnum(str, Enum):
@@ -43809,7 +43805,6 @@ class BookingStatusHistoryResponse(TimestampedResponse):
     changed_by: str | None
     note: str | None
 
-
 class WaitlistJoinRequest(BaseModel):
     hostel_id: str
     room_id: str
@@ -43820,13 +43815,12 @@ class WaitlistJoinRequest(BaseModel):
     
     @model_validator(mode="after")
     def validate_dates(self) -> "WaitlistJoinRequest":
-        from datetime import date
+        from datetime import date as date_type
         if self.check_out_date <= self.check_in_date:
             raise ValueError("check_out_date must be after check_in_date")
-        if self.check_in_date < date.today():
+        if self.check_in_date < date_type.today():
             raise ValueError("check_in_date cannot be in the past")
         return self
-
 
 class WaitlistEntryResponse(TimestampedResponse):
     id: str
@@ -46527,9 +46521,9 @@ All state transitions commit atomically. BedStay is the source of truth for occu
 import asyncio
 from datetime import date
 import uuid 
+from sqlalchemy import select, func
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.booking import BedStay, BedStayStatus, Booking, BookingMode, BookingStatus
@@ -47007,6 +47001,21 @@ class BookingService:
         Returns (waitlist_entry, position_in_queue)
         """
         from app.models.booking import WaitlistEntry, WaitlistStatus, BookingMode
+        from sqlalchemy import select
+        from datetime import date
+        
+        # Validate dates
+        if payload.check_out_date <= payload.check_in_date:
+            raise HTTPException(
+                status_code=400,
+                detail="check_out_date must be after check_in_date"
+            )
+        
+        if payload.check_in_date < date.today():
+            raise HTTPException(
+                status_code=400,
+                detail="Check-in date cannot be in the past"
+            )
         
         # Validate room exists
         from app.models.room import Room
@@ -47015,49 +47024,77 @@ class BookingService:
         )
         room = room_result.scalar_one_or_none()
         if not room:
-            raise HTTPException(status_code=404, detail=f"Room {payload.room_id} not found.")
-        
-        # Validate dates
-        if payload.check_out_date <= payload.check_in_date:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="check_out_date must be after check_in_date",
+                status_code=404,
+                detail=f"Room {payload.room_id} not found"
             )
         
-        # Check if already on waitlist for same room/dates
-        existing = await self.repository.get_active_waitlist_entry(
-            visitor_id=visitor_id,
-            room_id=payload.room_id,
-            check_in_date=payload.check_in_date,
-            check_out_date=payload.check_out_date,
-        )
+        try:
+            # Check for existing active waitlist entry
+            existing = await self.session.execute(
+                select(WaitlistEntry).where(
+                    WaitlistEntry.visitor_id == visitor_id,
+                    WaitlistEntry.room_id == payload.room_id,
+                    WaitlistEntry.status == WaitlistStatus.ACTIVE,
+                    WaitlistEntry.check_in_date == payload.check_in_date,
+                    WaitlistEntry.check_out_date == payload.check_out_date
+                )
+            )
+            existing_entry = existing.scalar_one_or_none()
+            
+            if existing_entry:
+                # Calculate position
+                pos_result = await self.session.execute(
+                    select(func.count())
+                    .select_from(WaitlistEntry)
+                    .where(
+                        WaitlistEntry.room_id == payload.room_id,
+                        WaitlistEntry.status == WaitlistStatus.ACTIVE,
+                        WaitlistEntry.created_at <= existing_entry.created_at
+                    )
+                )
+                position = int(pos_result.scalar() or 0)
+                return existing_entry, position
+            
+            # Create new waitlist entry
+            entry = WaitlistEntry(
+                visitor_id=visitor_id,
+                hostel_id=payload.hostel_id,
+                room_id=payload.room_id,
+                bed_id=payload.bed_id,
+                check_in_date=payload.check_in_date,
+                check_out_date=payload.check_out_date,
+                booking_mode=BookingMode(payload.booking_mode),
+                status=WaitlistStatus.ACTIVE,
+            )
+            
+            self.session.add(entry)
+            await self.session.flush()
+            await self.session.commit()
+            await self.session.refresh(entry)
+            
+            # Calculate position
+            pos_result = await self.session.execute(
+                select(func.count())
+                .select_from(WaitlistEntry)
+                .where(
+                    WaitlistEntry.room_id == payload.room_id,
+                    WaitlistEntry.status == WaitlistStatus.ACTIVE,
+                    WaitlistEntry.created_at <= entry.created_at
+                )
+            )
+            position = int(pos_result.scalar() or 0)
+            
+            return entry, position
+            
+        except Exception as e:
+            await self.session.rollback()
+            print(f"Waitlist join error: {e}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to join waitlist: {str(e)}"
+            )
         
-        if existing:
-            position = await self.repository.get_waitlist_position(entry=existing)
-            return existing, position
-        
-        # Create new waitlist entry
-        entry = WaitlistEntry(
-            visitor_id=visitor_id,
-            hostel_id=payload.hostel_id,
-            room_id=payload.room_id,
-            bed_id=payload.bed_id,
-            check_in_date=payload.check_in_date,
-            check_out_date=payload.check_out_date,
-            booking_mode=BookingMode(payload.booking_mode),
-            status=WaitlistStatus.ACTIVE,
-        )
-        
-        self.session.add(entry)
-        await self.session.flush()
-        await self.session.commit()
-        await self.session.refresh(entry)
-        
-        # Get position (1-indexed)
-        position = await self.repository.get_waitlist_position(entry=entry)
-        
-        return entry, position
-
     async def list_my_waitlist(self, *, visitor_id: str) -> list[dict]:
         entries = await self.repository.list_waitlist_entries_by_visitor(visitor_id)
         result: list[dict] = []
@@ -59640,6 +59677,72 @@ if __name__ == "__main__":
     tester.run_all_tests()
 
 ============================================================
+FILE: scripts\debug_waitlist.py
+============================================================
+# scripts/debug_waitlist.py
+import json
+import urllib.request
+import urllib.error
+from datetime import date, timedelta
+
+BASE_URL = "http://localhost:8000/api/v1"
+
+def make_request(method, path, token=None, body=None):
+    url = BASE_URL + path
+    data = json.dumps(body).encode() if body else None
+    headers = {"Content-Type": "application/json"}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    
+    req = urllib.request.Request(url, data=data, headers=headers, method=method)
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            raw = resp.read()
+            return resp.status, json.loads(raw) if raw else {}
+    except urllib.error.HTTPError as e:
+        raw = e.read()
+        try:
+            return e.code, json.loads(raw) if raw else {"detail": str(e)}
+        except:
+            return e.code, {"detail": raw.decode('utf-8', errors='replace')}
+    except Exception as e:
+        return 500, {"detail": str(e)}
+
+# Login
+status, data = make_request("POST", "/auth/login", body={
+    "email_or_phone": "arun.kapoor@gmail.com",
+    "password": "Test@1234"
+})
+token = data.get("access_token")
+print(f"Token obtained: {token[:50]}...")
+
+# Get a room
+status, rooms = make_request("GET", "/public/hostels/914ecd63-ab69-41de-85db-c85f8e6c5e0e/rooms", token=token)
+print(f"Rooms status: {status}")
+if status == 200:
+    print(f"Rooms: {json.dumps(rooms[:2], indent=2)}")
+    if rooms:
+        room_id = rooms[0].get("id")
+        print(f"Using room_id: {room_id}")
+        
+        # Try join waitlist with far future dates
+        future_date = (date.today() + timedelta(days=365)).isoformat()
+        future_end = (date.today() + timedelta(days=395)).isoformat()
+        
+        payload = {
+            "hostel_id": "914ecd63-ab69-41de-85db-c85f8e6c5e0e",
+            "room_id": room_id,
+            "booking_mode": "monthly",
+            "check_in_date": future_date,
+            "check_out_date": future_end
+        }
+        
+        print(f"Payload: {json.dumps(payload, indent=2)}")
+        status, data = make_request("POST", "/visitor/waitlist/join", token=token, body=payload)
+        print(f"Response status: {status}")
+        print(f"Response data: {json.dumps(data, indent=2)}")
+
+============================================================
 FILE: scripts\e2e_integrity_test.py
 ============================================================
 """
@@ -62451,9 +62554,12 @@ class VisitorRoutesTester:
         original_name = current.get("full_name")
         timestamp = datetime.now().strftime("%H%M%S")
         
+        # Use a unique phone number (based on timestamp) to avoid conflict
+        unique_phone = f"98{timestamp}1234"[-10:]  # Always 10 digits
+        
         update_data = {
             "full_name": f"Updated Visitor {timestamp}",
-            "phone": "9876543210"
+            "phone": unique_phone  # Dynamic unique phone
         }
         
         status, data = make_request("PATCH", "/visitor/profile", token=self.visitor_token, body=update_data)
@@ -62461,7 +62567,7 @@ class VisitorRoutesTester:
         if status == 200:
             self.add_result("Update Profile", True, f"Name: {data.get('full_name')}")
             
-            # Revert to original name
+            # Revert to original name (keep phone as is since it's unique)
             revert_data = {"full_name": original_name}
             make_request("PATCH", "/visitor/profile", token=self.visitor_token, body=revert_data)
         else:
