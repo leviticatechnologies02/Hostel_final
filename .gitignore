@@ -258,7 +258,7 @@ static/media/
 *.docx
 
 # Reports / Exports
-reports/
+
 exports/
 *.xlsx
 *.csv
