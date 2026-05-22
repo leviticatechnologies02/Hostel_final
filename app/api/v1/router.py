@@ -10,6 +10,8 @@ from app.api.v1.visitor.routes import router as visitor_router
 from app.api.v1.webhooks.routes import router as webhook_router
 from app.api.v1.reports.routes import router as reports_router  
 from app.api.v1.plans.routes import router as plans_router
+from app.api.v1.payments.routes import router as payments_router
+
 
 
 api_router = APIRouter()
@@ -24,3 +26,4 @@ api_router.include_router(visitor_router, prefix="/visitor", tags=["visitor"])
 api_router.include_router(webhook_router, prefix="/webhooks", tags=["webhooks"])
 api_router.include_router(reports_router, prefix="/reports", tags=["reports"])  
 api_router.include_router(plans_router, prefix="/plans", tags=["plans"])
+api_router.include_router(payments_router, prefix="/payments", tags=["payments"])

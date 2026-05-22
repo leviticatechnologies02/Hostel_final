@@ -649,6 +649,40 @@ async def check_out_student(booking_id: str, db: DBSession, current_user: AdminU
 
 
 @router.get("/hostels/{hostel_id}/payments", response_model=list[PaymentResponse])
+
+@router.get("/students/{student_id}/payments", response_model=list[PaymentResponse])
+async def get_student_payments_admin(
+    student_id: str,
+    db: DBSession,
+    current_user: AdminUser,
+):
+    """
+    **Get payment history for a specific student (Admin).**
+    
+    Requires hostel admin or super admin access to the student's hostel.
+    """
+    from app.models.student import Student
+    from app.services.payment_service import PaymentService
+    
+    # Get student to verify hostel access
+    result = await db.execute(
+        select(Student).where(Student.id == student_id)
+    )
+    student = result.scalar_one_or_none()
+    
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found.")
+    
+    # Check if admin has access to this student's hostel
+    if current_user.role != "super_admin":
+        if str(student.hostel_id) not in current_user.hostel_ids:
+            raise HTTPException(
+                status_code=403,
+                detail="Access denied to this student's payment records."
+            )
+    
+    return await PaymentService(db).list_admin_payments(hostel_id=str(student.hostel_id))
+
 async def list_payments(hostel_id: str, db: DBSession, current_user: AdminUser):
     _check_hostel(current_user, hostel_id)
     return await PaymentService(db).list_admin_payments(hostel_id=hostel_id)

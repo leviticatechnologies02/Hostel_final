@@ -69,7 +69,7 @@ async def verify_registration_otp(payload: OTPVerifyRequest, db: DBSession):
     return await AuthService(db).verify_registration_otp(payload)
 
 
-@router.post("/verify-otp", response_model=VisitorRegisterResponse)
+@router.post("/verify-otp", response_model=VisitorRegisterResponse) 
 async def verify_otp(payload: OTPVerifyRequest, db: DBSession):
     """Spec alias for verifying registration OTP."""
     return await AuthService(db).verify_registration_otp(payload)
@@ -122,6 +122,8 @@ async def refresh(request: Request, response: Response, db: DBSession):
         hostel_ids=token_pair.hostel_ids,
         expires_in=token_pair.expires_in,
     )
+    
+
 
 
 # Legacy endpoint (body-based). Kept for backward compatibility.
