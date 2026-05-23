@@ -17,10 +17,7 @@ class StudentService:
         self.student_repository = StudentRepository(session)
 
     async def check_in_from_booking(self, *, booking_id: str, actor_id: str):
-        """
-        Create a Student record from a CHECKED_IN booking.
-        Idempotent — raises 409 if student already exists for this booking.
-        """
+        """Create a Student record from a CHECKED_IN booking."""
         booking = await self.booking_repository.get_by_id(booking_id)
         if booking is None:
             raise HTTPException(status_code=404, detail="Booking not found.")
@@ -34,7 +31,6 @@ class StudentService:
         if booking.bed_id is None:
             raise HTTPException(status_code=400, detail="Booking has no allocated bed.")
 
-        # Idempotency check
         existing = await self.student_repository.get_student_by_booking(str(booking.id))
         if existing is not None:
             raise HTTPException(
@@ -51,6 +47,16 @@ class StudentService:
         # Promote user role to student
         await self.student_repository.promote_user_to_student(str(booking.visitor_id))
 
+        # ✨ REVOKE ALL EXISTING TOKENS - Force re-login
+        from app.repositories.user_repository import UserRepository
+        from datetime import UTC, datetime
+        
+        repo = UserRepository(self.session)
+        await repo.revoke_all_refresh_tokens(
+            user_id=str(booking.visitor_id),
+            revoked_at=datetime.now(UTC)
+        )
         await self.session.commit()
+        
         await self.session.refresh(student)
         return student

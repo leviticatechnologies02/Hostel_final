@@ -123,9 +123,6 @@ async def refresh(request: Request, response: Response, db: DBSession):
         expires_in=token_pair.expires_in,
     )
     
-
-
-
 # Legacy endpoint (body-based). Kept for backward compatibility.
 @router.post("/refresh-token", response_model=TokenResponse)
 async def refresh_token(payload: RefreshTokenRequest, db: DBSession):

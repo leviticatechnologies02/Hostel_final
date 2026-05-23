@@ -196,6 +196,7 @@ status, data = req("GET", "/student/profile", token=admin_token)
 check("Admin blocked from student profile", status == 403, f"status={status}")
 
 # ── 7. Super admin ────────────────────────────────────────────────────
+
 print("\n[7] Super Admin")
 status, data = req("GET", "/super-admin/dashboard", token=sa_token)
 check("Super admin dashboard", status == 200, str(data))
@@ -210,6 +211,7 @@ status, data = req("GET", "/super-admin/subscriptions", token=sa_token)
 check("Super admin subscriptions", status == 200, f"{len(data)} subscriptions")
 
 # ── 8. Student self-service ───────────────────────────────────────────
+
 print("\n[8] Student Self-Service")
 status, data = req("GET", "/student/profile", token=student_token)
 check("Student profile", status == 200, data.get("student_number", str(data)))

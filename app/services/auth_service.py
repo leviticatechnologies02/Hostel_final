@@ -94,14 +94,7 @@ class AuthService:
         )
 
     async def issue_tokens(self, user_id: str, device_info: str | None = None, ip_address: str | None = None) -> TokenResponse:
-        """
-        Issue access and refresh tokens with device tracking.
-        
-        Args:
-            user_id: User ID to issue tokens for
-            device_info: Device identifier/user agent
-            ip_address: Client IP address
-        """
+        """Issue access and refresh tokens with device tracking."""
         access_token = create_access_token(user_id)
         refresh_token = create_refresh_token(user_id)
         
@@ -115,17 +108,15 @@ class AuthService:
         )
         
         # Update last login
-        user = await self.repository.get_by_id(user_id)
-        if user:
-            user.last_login_at = datetime.now(UTC)
-
+        user = await self.repository.get_by_id(user_id)  
+        
         await self.session.commit()
 
         # Fetch hostel_ids for admin/supervisor roles
         hostel_ids: list[str] = []
         role = ""
         if user:
-            role = user.role.value if hasattr(user.role, "value") else str(user.role)
+            role = user.role.value if hasattr(user.role, "value") else str(user.role)  
             if role in ("hostel_admin", "supervisor"):
                 from sqlalchemy import select
                 from app.models.hostel import AdminHostelMapping, SupervisorHostelMapping
