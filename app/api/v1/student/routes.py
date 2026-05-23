@@ -1,4 +1,4 @@
-# app/api/v1/student/routes.py (CLEANED VERSION)
+# app/api/v1/student/routes.py - COMPLETELY FIXED VERSION
 
 from typing import Annotated
 
@@ -11,7 +11,6 @@ from app.schemas.attendance import AttendanceResponse
 from app.schemas.booking import BookingResponse, WaitlistEntryResponse
 from app.schemas.complaint import ComplaintCreateRequest, ComplaintResponse
 from app.schemas.mess_menu import MessMenuResponse
-from app.schemas.notice import NoticeResponse
 from app.schemas.payment import PaymentResponse
 from app.schemas.student import StudentProfileResponse
 from app.schemas.upload import PresignedUploadRequest, PresignedUploadResponse
@@ -49,7 +48,7 @@ class LeaveRequestCreate(PydanticBaseModel):
 
 router = APIRouter()
 StudentUser = Annotated[CurrentUser, Depends(require_roles("student"))]
-AdminUser = Annotated[CurrentUser, Depends(require_roles("hostel_admin", "super_admin"))]  
+AdminUser = Annotated[CurrentUser, Depends(require_roles("hostel_admin", "super_admin"))]
 
 class StudentChangePasswordRequest(BaseModel):
     """Request to change student password"""
@@ -59,8 +58,6 @@ class StudentChangePasswordRequest(BaseModel):
 
 
 # ==================== PROFILE ENDPOINTS ====================
-
-
 
 @router.get("/profile", response_model=StudentProfileResponse)
 async def profile(current_user: StudentUser, db: DBSession):
@@ -112,8 +109,8 @@ async def get_detailed_student_profile(current_user: StudentUser, db: DBSession)
         "email": user.email,
         "phone": user.phone,
         "profile_picture_url": user.profile_picture_url,
-        "gender": booking.gender if booking else None,  # ← ADD THIS
-        "date_of_birth": booking.date_of_birth if booking else None,  # ← ADD THIS
+        "gender": booking.gender if booking else None,
+        "date_of_birth": booking.date_of_birth if booking else None,
         "hostel": {
             "id": str(hostel.id),
             "name": hostel.name,
@@ -155,9 +152,10 @@ async def get_detailed_student_profile(current_user: StudentUser, db: DBSession)
         "updated_at": student.updated_at,
     }
 
+
 @router.patch("/profile")
 async def update_profile(
-    request: Request,  # Use Request to get raw body
+    request: Request,
     current_user: StudentUser, 
     db: DBSession
 ):
@@ -165,7 +163,6 @@ async def update_profile(
     from sqlalchemy import select
     from app.models.user import User
     
-    # Parse body manually
     try:
         body = await request.json()
     except:
@@ -176,14 +173,10 @@ async def update_profile(
     if not user:
         raise HTTPException(status_code=404, detail="User not found.")
     
-    # Update full name
     if "full_name" in body and body["full_name"] is not None:
         user.full_name = body["full_name"]
     
-    # Update phone
     if "phone" in body and body["phone"] is not None:
-        # Validate phone format
-        import re
         phone = body["phone"]
         digits_only = re.sub(r'[^0-9]', '', phone)
         if len(digits_only) < 10 or len(digits_only) > 13:
@@ -191,7 +184,6 @@ async def update_profile(
                 status_code=400,
                 detail="Phone number must have between 10 and 13 digits."
             )
-        # Check if phone is already taken
         existing = await db.execute(
             select(User).where(
                 User.phone == phone,
@@ -205,7 +197,6 @@ async def update_profile(
             )
         user.phone = phone
     
-    # Update profile picture
     if "profile_picture_url" in body and body["profile_picture_url"] is not None:
         user.profile_picture_url = body["profile_picture_url"]
     
@@ -219,6 +210,72 @@ async def update_profile(
         "phone": user.phone,
         "profile_picture_url": user.profile_picture_url
     }
+
+
+@router.post("/change-password")
+async def change_student_password(
+    payload: StudentChangePasswordRequest,
+    current_user: StudentUser,
+    db: DBSession
+):
+    """**Change student password.**"""
+    from app.models.user import User
+    from sqlalchemy import select
+    
+    if payload.new_password != payload.confirm_password:
+        raise HTTPException(
+            status_code=400,
+            detail="New passwords do not match."
+        )
+    
+    result = await db.execute(
+        select(User).where(User.id == current_user.id)
+    )
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found.")
+    
+    if not verify_password(payload.old_password, user.password_hash):
+        raise HTTPException(
+            status_code=401,
+            detail="Current password is incorrect."
+        )
+    
+    errors = []
+    if len(payload.new_password) < 8:
+        errors.append("Password must be at least 8 characters")
+    if not re.search(r'[A-Z]', payload.new_password):
+        errors.append("Password must contain at least one uppercase letter")
+    if not re.search(r'[a-z]', payload.new_password):
+        errors.append("Password must contain at least one lowercase letter")
+    if not re.search(r'[0-9]', payload.new_password):
+        errors.append("Password must contain at least one number")
+    if not re.search(r'[!@#$%^&*(),.?":{}|<>]', payload.new_password):
+        errors.append("Password must contain at least one special character")
+    
+    if errors:
+        raise HTTPException(
+            status_code=400,
+            detail="; ".join(errors)
+        )
+    
+    user.password_hash = hash_password(payload.new_password)
+    
+    repo = UserRepository(db)
+    await repo.revoke_all_refresh_tokens(
+        user_id=current_user.id,
+        revoked_at=datetime.now(UTC)
+    )
+    
+    await db.commit()
+    
+    return {
+        "message": "Password changed successfully.",
+        "user_id": str(user.id)
+    }
+
+
 # ==================== PAYMENT & BOOKING ====================
 
 @router.get("/payments", response_model=list[PaymentResponse])
@@ -241,7 +298,17 @@ async def attendance(current_user: StudentUser, db: DBSession):
     return await StudentReadService(db).list_attendance(user_id=current_user.id)
 
 
-# ==================== NOTICES ====================
+# ==================== NOTICE ROUTES ====================
+# CRITICAL: Static routes MUST come BEFORE dynamic {notice_id} routes
+
+@router.get("/notices/read-status", response_model=list[str])
+async def get_read_notice_ids(
+    current_user: StudentUser,
+    db: DBSession,
+):
+    """Get list of notice IDs that the student has read"""
+    return await NoticeService(db).get_user_read_notices(user_id=current_user.id)
+
 
 @router.get("/notices/paginated", response_model=NoticeListResponse)
 async def student_notices_paginated(
@@ -320,15 +387,6 @@ async def mark_notice_read(
         notice_id=notice_id,
         user_id=current_user.id,
     )
-
-
-@router.get("/notices/read-status", response_model=list[str])
-async def get_read_notice_ids(
-    current_user: StudentUser,
-    db: DBSession,
-):
-    """Get list of notice IDs that the student has read"""
-    return await NoticeService(db).get_user_read_notices(user_id=current_user.id)
 
 
 # ==================== MESS MENU ====================
@@ -475,25 +533,34 @@ async def room_info(current_user: StudentUser, db: DBSession):
 
 
 @router.post("/leave-request", status_code=201)
-async def create_leave_request(payload: "LeaveRequestCreate", current_user: StudentUser, db: DBSession):
+async def create_leave_request(payload: LeaveRequestCreate, current_user: StudentUser, db: DBSession):
     """**Apply for leave.** Creates a leave request for admin approval."""
-    from app.schemas.student import LeaveRequestCreate
+    from datetime import date
     
     result = await db.execute(select(Student).where(Student.user_id == current_user.id))
     student = result.scalar_one_or_none()
     if not student:
         raise HTTPException(status_code=404, detail="Student profile not found.")
     
+    # Validate dates
+    try:
+        from_date = date.fromisoformat(payload.from_date)
+        to_date = date.fromisoformat(payload.to_date)
+        if to_date < from_date:
+            raise HTTPException(status_code=400, detail="End date must be after start date")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
+    
     import uuid
     leave = Complaint(
         complaint_number=f"LVE-{uuid.uuid4().hex[:6].upper()}",
         student_id=student.id,
         hostel_id=student.hostel_id,
-        category="other",
+        category="leave",
         title=f"Leave Request: {payload.from_date} to {payload.to_date}",
         description=f"Leave from {payload.from_date} to {payload.to_date}. Reason: {payload.reason}",
         priority="low",
-        status="open",
+        status="pending",
     )
     db.add(leave)
     await db.commit()
@@ -507,7 +574,7 @@ async def create_leave_request(payload: "LeaveRequestCreate", current_user: Stud
     }
 
 
-# ==================== ADMIN HELPER (MOVED FROM DUPLICATE) ====================
+# ==================== ADMIN HELPER ====================
 
 @router.get("/students/{student_id}", response_model=StudentResponse)
 async def get_student_by_admin(
@@ -561,85 +628,4 @@ async def get_student_by_admin(
         "booking_number": booking.booking_number,
         "created_at": student.created_at,
         "updated_at": student.updated_at,
-    }
-
-
-# ==================== PYDANTIC MODELS (at bottom of file) ====================
-
-@router.post("/change-password")
-async def change_student_password(
-    payload: StudentChangePasswordRequest,
-    current_user: StudentUser,
-    db: DBSession
-):
-    """
-    **Change student password.**
-    
-    Requirements:
-    - Current password must be correct
-    - New password: min 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 special char
-    - New password and confirm password must match
-    
-    After successful change, all other sessions are revoked for security.
-    """
-    from app.models.user import User
-    from sqlalchemy import select
-    
-    # Validate passwords match
-    if payload.new_password != payload.confirm_password:
-        raise HTTPException(
-            status_code=400,
-            detail="New passwords do not match."
-        )
-    
-    # Get the user record
-    result = await db.execute(
-        select(User).where(User.id == current_user.id)
-    )
-    user = result.scalar_one_or_none()
-    
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found.")
-    
-    # Verify current password
-    if not verify_password(payload.old_password, user.password_hash):
-        raise HTTPException(
-            status_code=401,
-            detail="Current password is incorrect."
-        )
-    
-    # Validate new password strength
-    errors = []
-    if len(payload.new_password) < 8:
-        errors.append("Password must be at least 8 characters")
-    if not re.search(r'[A-Z]', payload.new_password):
-        errors.append("Password must contain at least one uppercase letter")
-    if not re.search(r'[a-z]', payload.new_password):
-        errors.append("Password must contain at least one lowercase letter")
-    if not re.search(r'[0-9]', payload.new_password):
-        errors.append("Password must contain at least one number")
-    if not re.search(r'[!@#$%^&*(),.?":{}|<>]', payload.new_password):
-        errors.append("Password must contain at least one special character")
-    
-    if errors:
-        raise HTTPException(
-            status_code=400,
-            detail="; ".join(errors)
-        )
-    
-    # Hash and update password
-    user.password_hash = hash_password(payload.new_password)
-    
-    # Revoke all other sessions for security (keep current)
-    repo = UserRepository(db)
-    await repo.revoke_all_refresh_tokens(
-        user_id=current_user.id,
-        revoked_at=datetime.now(UTC)
-    )
-    
-    await db.commit()
-    
-    return {
-        "message": "Password changed successfully.",
-        "user_id": str(user.id)
     }

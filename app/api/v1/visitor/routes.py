@@ -184,10 +184,6 @@ async def visitor_notices_paginated(
 ):
     """
     **Get paginated notices visible to visitors.**
-    
-    Visitors can see:
-    - Platform-wide notices (hostel_id = None)
-    - No hostel-specific notices (since visitors aren't assigned to a hostel)
     """
     now = datetime.now(UTC)
     
@@ -245,6 +241,7 @@ async def visitor_notices_paginated(
         "page": page,
         "per_page": per_page,
     }
+
 
 
 @router.get("/notices/read-status")

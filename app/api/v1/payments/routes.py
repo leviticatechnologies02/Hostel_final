@@ -316,17 +316,24 @@ async def get_student_payments_admin(
     Requires hostel admin or super admin access to the student's hostel.
     """
     from app.models.student import Student
-    from app.services.payment_service import PaymentService
+    from sqlalchemy import select
     
     print(f"DEBUG: Admin role: {current_user.role}")
     print(f"DEBUG: Admin hostel_ids: {current_user.hostel_ids}")
     print(f"DEBUG: Looking for student_id: {student_id}")
     
-    # Get student to verify hostel access
+    # Try to get student by ID directly (student_id here is the student record ID, not user ID)
     result = await db.execute(
         select(Student).where(Student.id == student_id)
     )
     student = result.scalar_one_or_none()
+    
+    if not student:
+        # Try as user_id
+        result = await db.execute(
+            select(Student).where(Student.user_id == student_id)
+        )
+        student = result.scalar_one_or_none()
     
     if not student:
         print(f"DEBUG: Student not found with ID {student_id}")
@@ -337,11 +344,13 @@ async def get_student_payments_admin(
     
     # Check if admin has access to this student's hostel
     if current_user.role != "super_admin":
-        if student_hostel_id not in current_user.hostel_ids:
-            print(f"DEBUG: Access denied! {student_hostel_id} not in {current_user.hostel_ids}")
+        # Convert hostel_ids to strings for comparison
+        admin_hostel_ids = [str(hid) for hid in current_user.hostel_ids]
+        if student_hostel_id not in admin_hostel_ids:
+            print(f"DEBUG: Access denied! {student_hostel_id} not in {admin_hostel_ids}")
             raise HTTPException(
                 status_code=403,
-                detail=f"Access denied to this student's payment records. Student hostel: {student_hostel_id}, Admin hostels: {current_user.hostel_ids}"
+                detail=f"Access denied to this student's payment records."
             )
     
     print(f"DEBUG: Access granted!")
@@ -349,7 +358,7 @@ async def get_student_payments_admin(
     # Get payments for this student
     payments_result = await db.execute(
         select(Payment)
-        .where(Payment.student_id == student_id)
+        .where(Payment.student_id == student.id)
         .order_by(Payment.created_at.desc())
     )
     payments = payments_result.scalars().all()
