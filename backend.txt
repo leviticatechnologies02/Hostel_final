@@ -2,49 +2,62 @@
 ============================================================
 FILE: .env
 ============================================================
-# Render PostgreSQL Database
+# ============================================================
+# DATABASE
+# ============================================================
 DATABASE_URL=postgresql+asyncpg://stayease_db_0hw4_user:0L7DvsoMZ4ff88BYqohgiceUJITTSmJG@dpg-d7kaci4m0tmc73aeivm0-a.oregon-postgres.render.com:5432/stayease_db_0hw4
 
-# Redis Configuration (for Celery) - Update with your Redis URL
+# ============================================================
+# REDIS
+# ============================================================
 REDIS_URL=redis://localhost:6379/0
 
-# Security Configuration
+# ============================================================
+# SECURITY
+# ============================================================
 SECRET_KEY=your-secret-key-change-this-in-production-06db3160e81df454cfbde829bf4ed602
 JWT_ALGORITHM=HS256
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=15
 REFRESH_TOKEN_EXPIRE_DAYS=30
 
-# CORS Configuration
+# ============================================================
+# CORS
+# ============================================================
 FRONTEND_URL=http://localhost:5173
 ALLOWED_ORIGINS=http://localhost:5173,http://localhost:5174,http://localhost:3000,http://localhost:8000
 
-# Environment
+# ============================================================
+# ENVIRONMENT
+# ============================================================
 APP_ENV=development
 DEBUG=true
 
-# Email Configuration (Update with your email settings)
+# ============================================================
+# EMAIL (Gmail)
+# ============================================================
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USER=your-email@gmail.com
 SMTP_PASSWORD=your-app-password
 EMAIL_FROM=noreply@stayease.com
 
-# Razorpay Payment Gateway (Test Mode)
-RAZORPAY_KEY_ID=rzp_test_xxxxx
-RAZORPAY_KEY_SECRET=xxxxx
-RAZORPAY_WEBHOOK_SECRET=xxxxx
+# ============================================================
+# RAZORPAY PAYMENT - USE TEST KEYS FOR DEVELOPMENT
+# ============================================================
+# Test Keys (from Razorpay Dashboard → Settings → API Keys)
+# These start with "rzp_test_"
+RAZORPAY_KEY_ID=rzp_test_Sa9l92GX7GthQs
+RAZORPAY_KEY_SECRET=your_test_secret_here
+RAZORPAY_WEBHOOK_SECRET=your_webhook_secret_here
 
-# AWS S3 File Storage (Optional)
+# ============================================================
+# AWS S3 (Optional - for file uploads)
+# ============================================================
 AWS_ACCESS_KEY_ID=your-aws-access-key
 AWS_SECRET_ACCESS_KEY=your-aws-secret-key
 AWS_STORAGE_BUCKET_NAME=stayease-uploads
 AWS_REGION=ap-south-1
-
-# CORS Configuration
-FRONTEND_URL=http://localhost:5173
-ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
-
 
 ============================================================
 FILE: .env.env.backup
@@ -715,49 +728,62 @@ FILE: backend.txt
 ============================================================
 FILE: .env
 ============================================================
-# Render PostgreSQL Database
+# ============================================================
+# DATABASE
+# ============================================================
 DATABASE_URL=postgresql+asyncpg://stayease_db_0hw4_user:0L7DvsoMZ4ff88BYqohgiceUJITTSmJG@dpg-d7kaci4m0tmc73aeivm0-a.oregon-postgres.render.com:5432/stayease_db_0hw4
 
-# Redis Configuration (for Celery) - Update with your Redis URL
+# ============================================================
+# REDIS
+# ============================================================
 REDIS_URL=redis://localhost:6379/0
 
-# Security Configuration
+# ============================================================
+# SECURITY
+# ============================================================
 SECRET_KEY=your-secret-key-change-this-in-production-06db3160e81df454cfbde829bf4ed602
 JWT_ALGORITHM=HS256
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=15
 REFRESH_TOKEN_EXPIRE_DAYS=30
 
-# CORS Configuration
+# ============================================================
+# CORS
+# ============================================================
 FRONTEND_URL=http://localhost:5173
 ALLOWED_ORIGINS=http://localhost:5173,http://localhost:5174,http://localhost:3000,http://localhost:8000
 
-# Environment
+# ============================================================
+# ENVIRONMENT
+# ============================================================
 APP_ENV=development
 DEBUG=true
 
-# Email Configuration (Update with your email settings)
+# ============================================================
+# EMAIL (Gmail)
+# ============================================================
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USER=your-email@gmail.com
 SMTP_PASSWORD=your-app-password
 EMAIL_FROM=noreply@stayease.com
 
-# Razorpay Payment Gateway (Test Mode)
-RAZORPAY_KEY_ID=rzp_test_xxxxx
-RAZORPAY_KEY_SECRET=xxxxx
-RAZORPAY_WEBHOOK_SECRET=xxxxx
+# ============================================================
+# RAZORPAY PAYMENT - USE TEST KEYS FOR DEVELOPMENT
+# ============================================================
+# Test Keys (from Razorpay Dashboard → Settings → API Keys)
+# These start with "rzp_test_"
+RAZORPAY_KEY_ID=rzp_test_Sa9l92GX7GthQs
+RAZORPAY_KEY_SECRET=your_test_secret_here
+RAZORPAY_WEBHOOK_SECRET=your_webhook_secret_here
 
-# AWS S3 File Storage (Optional)
+# ============================================================
+# AWS S3 (Optional - for file uploads)
+# ============================================================
 AWS_ACCESS_KEY_ID=your-aws-access-key
 AWS_SECRET_ACCESS_KEY=your-aws-secret-key
 AWS_STORAGE_BUCKET_NAME=stayease-uploads
 AWS_REGION=ap-south-1
-
-# CORS Configuration
-FRONTEND_URL=http://localhost:5173
-ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
-
 
 ============================================================
 FILE: .env.env.backup
@@ -43621,8 +43647,7 @@ class StudentRepository:
         result = await self.session.execute(select(User).where(User.id == user_id))
         user = result.scalar_one_or_none()
         if user is not None:
-            user.role = UserRole.STUDENT
-        await self.session.flush()
+            user.role = UserRole.STUDENT  # ← Promotes visitor to student
         return user
 
 
@@ -46889,14 +46914,7 @@ class AuthService:
         )
 
     async def issue_tokens(self, user_id: str, device_info: str | None = None, ip_address: str | None = None) -> TokenResponse:
-        """
-        Issue access and refresh tokens with device tracking.
-        
-        Args:
-            user_id: User ID to issue tokens for
-            device_info: Device identifier/user agent
-            ip_address: Client IP address
-        """
+        """Issue access and refresh tokens with device tracking."""
         access_token = create_access_token(user_id)
         refresh_token = create_refresh_token(user_id)
         
@@ -46910,17 +46928,15 @@ class AuthService:
         )
         
         # Update last login
-        user = await self.repository.get_by_id(user_id)
-        if user:
-            user.last_login_at = datetime.now(UTC)
-
+        user = await self.repository.get_by_id(user_id)  
+        
         await self.session.commit()
 
         # Fetch hostel_ids for admin/supervisor roles
         hostel_ids: list[str] = []
         role = ""
         if user:
-            role = user.role.value if hasattr(user.role, "value") else str(user.role)
+            role = user.role.value if hasattr(user.role, "value") else str(user.role)  
             if role in ("hostel_admin", "supervisor"):
                 from sqlalchemy import select
                 from app.models.hostel import AdminHostelMapping, SupervisorHostelMapping
@@ -50829,10 +50845,7 @@ class StudentService:
         self.student_repository = StudentRepository(session)
 
     async def check_in_from_booking(self, *, booking_id: str, actor_id: str):
-        """
-        Create a Student record from a CHECKED_IN booking.
-        Idempotent — raises 409 if student already exists for this booking.
-        """
+        """Create a Student record from a CHECKED_IN booking."""
         booking = await self.booking_repository.get_by_id(booking_id)
         if booking is None:
             raise HTTPException(status_code=404, detail="Booking not found.")
@@ -50846,7 +50859,6 @@ class StudentService:
         if booking.bed_id is None:
             raise HTTPException(status_code=400, detail="Booking has no allocated bed.")
 
-        # Idempotency check
         existing = await self.student_repository.get_student_by_booking(str(booking.id))
         if existing is not None:
             raise HTTPException(
@@ -50863,10 +50875,19 @@ class StudentService:
         # Promote user role to student
         await self.student_repository.promote_user_to_student(str(booking.visitor_id))
 
+        # ✨ REVOKE ALL EXISTING TOKENS - Force re-login
+        from app.repositories.user_repository import UserRepository
+        from datetime import UTC, datetime
+        
+        repo = UserRepository(self.session)
+        await repo.revoke_all_refresh_tokens(
+            user_id=str(booking.visitor_id),
+            revoked_at=datetime.now(UTC)
+        )
         await self.session.commit()
+        
         await self.session.refresh(student)
         return student
-
 
 ============================================================
 FILE: app\services\subscription_validator.py
@@ -62037,3 +62058,547 @@ async def seed_render():
 
 if __name__ == "__main__":
     asyncio.run(seed_render())
+
+============================================================
+FILE: scripts\test_student_login.py
+============================================================
+#!/usr/bin/env python3
+"""
+Student Login & Role Test Script
+Diagnoses why students are redirected to visitor pages.
+
+Run: python test_student_login.py
+"""
+
+import json
+import urllib.request
+import urllib.error
+import asyncio
+import asyncpg
+from datetime import datetime
+from typing import Optional, Dict, Any
+
+BASE_URL = "http://localhost:8000/api/v1"
+
+# ANSI colors
+GREEN = "\033[92m"
+RED = "\033[91m"
+YELLOW = "\033[93m"
+BLUE = "\033[94m"
+CYAN = "\033[96m"
+RESET = "\033[0m"
+BOLD = "\033[1m"
+
+
+def print_success(text: str):
+    print(f"{GREEN}✓ {text}{RESET}")
+
+def print_error(text: str):
+    print(f"{RED}✗ {text}{RESET}")
+
+def print_info(text: str):
+    print(f"{BLUE}ℹ {text}{RESET}")
+
+def print_warning(text: str):
+    print(f"{YELLOW}⚠ {text}{RESET}")
+
+def print_section(title: str):
+    print(f"\n{CYAN}{'='*70}{RESET}")
+    print(f"{CYAN}{title:^70}{RESET}")
+    print(f"{CYAN}{'='*70}{RESET}\n")
+
+
+def make_request(method: str, path: str, token: Optional[str] = None, body: Optional[Dict] = None) -> tuple[int, Any]:
+    """Make HTTP request to API"""
+    url = BASE_URL + path
+    data = json.dumps(body).encode() if body else None
+    headers = {"Content-Type": "application/json"}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    
+    req = urllib.request.Request(url, data=data, headers=headers, method=method)
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            raw = resp.read()
+            return resp.status, json.loads(raw) if raw else {}
+    except urllib.error.HTTPError as e:
+        raw = e.read()
+        try:
+            return e.code, json.loads(raw) if raw else {"detail": str(e)}
+        except:
+            return e.code, {"detail": raw.decode('utf-8', errors='replace')}
+    except Exception as e:
+        return 500, {"detail": str(e)}
+
+
+def login(email: str, password: str = "Test@1234") -> Optional[Dict]:
+    """Login and return full response"""
+    status, data = make_request("POST", "/auth/login", body={
+        "email_or_phone": email,
+        "password": password
+    })
+    
+    if status == 200:
+        print_success(f"Logged in as {email}")
+        return data
+    else:
+        print_error(f"Login failed for {email}: {data.get('detail', 'Unknown error')}")
+        return None
+
+
+def test_student_endpoint(token: str, endpoint: str, name: str) -> bool:
+    """Test if student can access an endpoint"""
+    status, data = make_request("GET", endpoint, token=token)
+    
+    if status == 200:
+        print_success(f"✅ Student can access {name}")
+        return True
+    elif status == 403:
+        print_error(f"❌ Student CANNOT access {name} (403 Forbidden)")
+        print_info(f"   Response: {data.get('detail', 'No detail')}")
+        return False
+    else:
+        print_warning(f"⚠️ {name} returned status {status}")
+        return False
+
+
+async def check_database_role(email: str, db_url: str) -> tuple[str, bool]:
+    """Check user role directly in database"""
+    try:
+        conn = await asyncpg.connect(db_url)
+        result = await conn.fetchrow(
+            "SELECT role, is_active FROM users WHERE email = $1",
+            email
+        )
+        await conn.close()
+        
+        if result:
+            return result['role'], result['is_active']
+        return None, False
+    except Exception as e:
+        print_error(f"Database query failed: {e}")
+        return None, False
+
+
+async def update_database_role(email: str, new_role: str, db_url: str) -> bool:
+    """Update user role in database"""
+    try:
+        conn = await asyncpg.connect(db_url)
+        await conn.execute(
+            "UPDATE users SET role = $1 WHERE email = $2",
+            new_role, email
+        )
+        await conn.close()
+        print_success(f"Updated {email} role to {new_role}")
+        return True
+    except Exception as e:
+        print_error(f"Failed to update role: {e}")
+        return False
+
+
+def main():
+    print_section("STUDENT LOGIN DIAGNOSTIC")
+    
+    # Test student emails (from seed data)
+    student_emails = [
+        "hemant.pawade.lev044@levitica.in",
+        "abhilash.gurrampally.lev029@levitica.in",
+        "arun.kapoor@gmail.com",  # This is a visitor, for comparison
+    ]
+    
+    results = {}
+    
+    for email in student_emails:
+        print_section(f"Testing: {email}")
+        
+        # 1. Try to login
+        login_response = login(email)
+        
+        if not login_response:
+            print_error(f"Cannot login as {email}")
+            continue
+        
+        token = login_response.get("access_token")
+        role_from_login = login_response.get("role")
+        user_id = login_response.get("user_id")
+        
+        print_info(f"Role from login response: {role_from_login}")
+        print_info(f"User ID: {user_id}")
+        
+        # 2. Test which endpoints student can access
+        print_info("\nTesting endpoint access:")
+        
+        # Student endpoints (should work)
+        student_endpoints = [
+            ("/student/profile", "Student Profile"),
+            ("/student/bookings", "Student Bookings"),
+            ("/student/payments", "Student Payments"),
+            ("/student/attendance", "Student Attendance"),
+            ("/student/complaints", "Student Complaints"),
+            ("/student/notices/paginated", "Student Notices"),
+            ("/student/mess-menu", "Student Mess Menu"),
+        ]
+        
+        student_access = []
+        for endpoint, name in student_endpoints:
+            can_access = test_student_endpoint(token, endpoint, name)
+            student_access.append(can_access)
+        
+        # Visitor endpoints (should also work for students)
+        print_info("\nTesting visitor endpoints (should work for students):")
+        visitor_endpoints = [
+            ("/visitor/profile", "Visitor Profile"),
+            ("/visitor/bookings", "Visitor Bookings"),
+            ("/visitor/favorites", "Visitor Favorites"),
+        ]
+        
+        for endpoint, name in visitor_endpoints:
+            test_student_endpoint(token, endpoint, name)
+        
+        # Admin endpoints (should NOT work)
+        print_info("\nTesting admin endpoints (should fail):")
+        status, _ = make_request("GET", "/admin/dashboard", token=token)
+        if status == 403:
+            print_success("✅ Student correctly blocked from admin dashboard")
+        else:
+            print_error(f"❌ Student accessed admin dashboard (status {status})")
+        
+        # Store results
+        results[email] = {
+            "role_from_login": role_from_login,
+            "student_endpoint_access": all(student_access) if student_access else False,
+            "can_access_count": sum(student_access)
+        }
+    
+    # Summary
+    print_section("SUMMARY")
+    
+    print("\nResults:")
+    for email, data in results.items():
+        status_icon = "✅" if data["student_endpoint_access"] else "❌"
+        print(f"  {status_icon} {email}")
+        print(f"     Role in token: {data['role_from_login']}")
+        print(f"     Student endpoints accessible: {data['can_access_count']}/7")
+    
+    # Recommendations
+    print_section("RECOMMENDATIONS")
+    
+    if any(not r["student_endpoint_access"] for r in results.values()):
+        print(f"\n{RED}❌ Students cannot access student endpoints!{RESET}\n")
+        print("Possible causes and fixes:")
+        print("")
+        print("1. DATABASE ROLE IS INCORRECT")
+        print("   - Student users have 'visitor' role in database")
+        print("   - Run: UPDATE users SET role = 'student' WHERE email LIKE '%@levitica.in';")
+        print("")
+        print("2. TOKEN NOT REFRESHED AFTER ROLE CHANGE")
+        print("   - When a visitor becomes a student, old tokens remain valid")
+        print("   - Add token revocation in StudentService.check_in_from_booking()")
+        print("")
+        print("3. JWT TOKEN CONTAINS OLD ROLE")
+        print("   - The JWT payload doesn't include role, so it always queries DB")
+        print("   - Check that get_current_user() is fetching fresh role from DB")
+        print("")
+        print("QUICK FIX:")
+        print("   UPDATE users SET role = 'student' WHERE role = 'visitor' AND email LIKE '%@levitica.in';")
+    else:
+        print(f"\n{GREEN}✅ Students can access student endpoints correctly!{RESET}")
+        print("\nIf still redirecting to visitor pages, check frontend routing:")
+        print("  - Does the frontend check `user.role === 'student'`?")
+        print("  - Is localStorage being cleared after role change?")
+        print("  - Are you using the token from login response (not stored old token)?")
+
+
+if __name__ == "__main__":
+    # Ask for database URL if needed
+    import os
+    db_url = os.environ.get('DATABASE_URL', 'postgresql://postgres:Kiran$1234@localhost:5432/stayease_dev')
+    
+    async def run_db_check():
+        print_section("DATABASE ROLE CHECK")
+        
+        for email in ["hemant.pawade.lev044@levitica.in", "abhilash.gurrampally.lev029@levitica.in"]:
+            role, is_active = await check_database_role(email, db_url)
+            if role:
+                status = "✅" if role == "student" else "❌"
+                print(f"  {status} {email}: role={role}, active={is_active}")
+                
+                if role != "student":
+                    print_warning(f"  {email} has role '{role}' - should be 'student'!")
+                    response = input(f"  Fix now? (y/n): ").strip().lower()
+                    if response == 'y':
+                        await update_database_role(email, "student", db_url)
+            else:
+                print_error(f"  User not found: {email}")
+    
+    # Run async DB check
+    asyncio.run(run_db_check())
+    
+    # Run main tests
+    main()
+
+============================================================
+FILE: scripts\test_student_vs_visitor.py
+============================================================
+# scripts/test_student_vs_visitor.py
+import requests
+
+BASE = "http://localhost:8000/api/v1"
+
+# Login as student
+resp = requests.post(f"{BASE}/auth/login", json={
+    "email_or_phone": "hemant.pawade.lev044@levitica.in",
+    "password": "Test@1234"
+})
+token = resp.json().get("access_token")
+headers = {"Authorization": f"Bearer {token}"}
+
+print("=== Student Access Test ===")
+
+# Student-specific endpoint (should work)
+r = requests.get(f"{BASE}/student/profile", headers=headers)
+print(f"GET /student/profile: {r.status_code} - {'✅' if r.status_code == 200 else '❌'}")
+
+# Visitor endpoint (should also work - by design)
+r = requests.get(f"{BASE}/visitor/profile", headers=headers)
+print(f"GET /visitor/profile: {r.status_code} - {'✅' if r.status_code == 200 else '❌'}")
+
+# Try to access admin endpoint (should FAIL)
+r = requests.get(f"{BASE}/admin/dashboard", headers=headers)
+print(f"GET /admin/dashboard: {r.status_code} - {'✅' if r.status_code == 403 else '❌'}")
+
+============================================================
+FILE: scripts\test_visitor_login.py
+============================================================
+# scripts/test_visitor_login.py
+#!/usr/bin/env python3
+"""
+Test Visitor Login and Role Assignment
+Run: python scripts/test_visitor_login.py
+"""
+
+import json
+import urllib.request
+import urllib.error
+
+BASE_URL = "http://localhost:8000/api/v1"
+
+def make_request(method, path, body=None, token=None):
+    url = BASE_URL + path
+    data = json.dumps(body).encode() if body else None
+    headers = {"Content-Type": "application/json"}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    
+    req = urllib.request.Request(url, data=data, headers=headers, method=method)
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            raw = resp.read()
+            return resp.status, json.loads(raw) if raw else {}
+    except urllib.error.HTTPError as e:
+        raw = e.read()
+        try:
+            return e.code, json.loads(raw) if raw else {"detail": str(e)}
+        except:
+            return e.code, {"detail": raw.decode('utf-8', errors='replace')}
+    except Exception as e:
+        return 500, {"detail": str(e)}
+
+def test_visitor_login():
+    print("\n" + "="*60)
+    print("TESTING VISITOR LOGIN")
+    print("="*60)
+    
+    # Test 1: Login as visitor
+    print("\n1. Login as Visitor (arun.kapoor@gmail.com)")
+    status, data = make_request("POST", "/auth/login", body={
+        "email_or_phone": "arun.kapoor@gmail.com",
+        "password": "Test@1234"
+    })
+    
+    if status == 200:
+        print(f"✅ Visitor login successful!")
+        print(f"   User ID: {data.get('user_id')}")
+        print(f"   Role: {data.get('role')}")
+        print(f"   Token: {data.get('access_token')[:50]}...")
+        visitor_token = data.get('access_token')
+        
+        # Test visitor profile
+        status, profile = make_request("GET", "/visitor/profile", token=visitor_token)
+        if status == 200:
+            print(f"✅ Visitor profile accessible")
+            print(f"   Name: {profile.get('full_name')}")
+            print(f"   Email: {profile.get('email')}")
+        else:
+            print(f"❌ Visitor profile failed: {status}")
+        
+        # Test student profile (should FAIL for visitor)
+        status, profile = make_request("GET", "/student/profile", token=visitor_token)
+        if status == 403:
+            print(f"✅ Visitor correctly blocked from student profile (403)")
+        else:
+            print(f"⚠️ Visitor got status {status} on student profile (expected 403)")
+    else:
+        print(f"❌ Visitor login failed: {status} - {data.get('detail', 'Unknown')}")
+        visitor_token = None
+    
+    return visitor_token
+
+def test_student_login():
+    print("\n" + "="*60)
+    print("TESTING STUDENT LOGIN")
+    print("="*60)
+    
+    # Test student emails from seed data
+    student_emails = [
+        "hemant.pawade.lev044@levitica.in",
+        "abhilash.gurrampally.lev029@levitica.in",
+        "arun.kapoor@gmail.com",  # This is actually visitor, not student
+    ]
+    
+    student_token = None
+    
+    for email in student_emails:
+        print(f"\n2. Login as: {email}")
+        status, data = make_request("POST", "/auth/login", body={
+            "email_or_phone": email,
+            "password": "Test@1234"
+        })
+        
+        if status == 200:
+            role = data.get('role')
+            print(f"   ✅ Login successful! Role: {role}")
+            
+            if role == "student":
+                student_token = data.get('access_token')
+                print(f"   ✅ Student token obtained")
+                
+                # Test student profile
+                status, profile = make_request("GET", "/student/profile", token=student_token)
+                if status == 200:
+                    print(f"   ✅ Student profile accessible")
+                    print(f"      Name: {profile.get('full_name')}")
+                    print(f"      Student #: {profile.get('student_number')}")
+                else:
+                    print(f"   ❌ Student profile failed: {status} - {profile.get('detail', 'Unknown')}")
+                
+                # Test visitor profile (should be accessible - students can use visitor endpoints)
+                status, profile = make_request("GET", "/visitor/profile", token=student_token)
+                if status == 200:
+                    print(f"   ✅ Student can access visitor profile (expected)")
+                else:
+                    print(f"   ⚠️ Student cannot access visitor profile: {status}")
+            else:
+                print(f"   ⚠️ Login successful but role is '{role}', not 'student'")
+        else:
+            print(f"   ❌ Login failed: {status} - {data.get('detail', 'Unknown')}")
+    
+    return student_token
+
+def check_database_roles():
+    print("\n" + "="*60)
+    print("CHECKING DATABASE ROLES")
+    print("="*60)
+    
+    try:
+        import asyncpg
+        import asyncio
+        
+        async def check():
+            conn = await asyncpg.connect(
+                "postgresql://postgres:Kiran$1234@localhost:5432/stayease_dev"
+            )
+            
+            # Check student emails
+            rows = await conn.fetch("""
+                SELECT email, role 
+                FROM users 
+                WHERE email LIKE '%@levitica.in' OR email = 'arun.kapoor@gmail.com'
+                ORDER BY email
+            """)
+            
+            print("\nUser roles in database:")
+            for row in rows:
+                role_marker = "✅" if row['role'] == 'student' else "⚠️"
+                print(f"  {role_marker} {row['email']}: {row['role']}")
+            
+            # Count students vs visitors
+            counts = await conn.fetch("""
+                SELECT role, COUNT(*) 
+                FROM users 
+                GROUP BY role
+            """)
+            
+            print("\nRole counts:")
+            for row in counts:
+                print(f"  {row['role']}: {row['count']}")
+            
+            await conn.close()
+        
+        asyncio.run(check())
+    except Exception as e:
+        print(f"⚠️ Could not check database: {e}")
+        print("   Make sure PostgreSQL is running and credentials are correct")
+
+def test_student_endpoints(student_token):
+    if not student_token:
+        print("\n❌ No student token available - skipping student endpoint tests")
+        return
+    
+    print("\n" + "="*60)
+    print("TESTING STUDENT ENDPOINTS")
+    print("="*60)
+    
+    endpoints = [
+        ("GET", "/student/profile", "Student Profile"),
+        ("GET", "/student/bookings", "Student Bookings"),
+        ("GET", "/student/payments", "Student Payments"),
+        ("GET", "/student/attendance", "Student Attendance"),
+        ("GET", "/student/notices/paginated", "Student Notices"),
+        ("GET", "/student/mess-menu", "Student Mess Menu"),
+        ("GET", "/student/complaints", "Student Complaints"),
+    ]
+    
+    for method, path, name in endpoints:
+        status, data = make_request(method, path, token=student_token)
+        if status == 200:
+            count = len(data) if isinstance(data, list) else 1
+            print(f"✅ {name}: OK (status {status}, {count} items)")
+        elif status == 403:
+            print(f"❌ {name}: FORBIDDEN (status 403) - Role issue!")
+        else:
+            print(f"⚠️ {name}: Status {status}")
+
+def main():
+    print("\n" + "="*70)
+    print("  VISITOR/STUDENT LOGIN DIAGNOSTIC")
+    print("="*70)
+    
+    # Check database first
+    check_database_roles()
+    
+    # Test visitor login
+    visitor_token = test_visitor_login()
+    
+    # Test student login
+    student_token = test_student_login()
+    
+    # Test student endpoints if we have a token
+    test_student_endpoints(student_token)
+    
+    print("\n" + "="*70)
+    print("  DIAGNOSTIC COMPLETE")
+    print("="*70)
+    
+    if student_token:
+        print("\n✅ Student token obtained successfully")
+    else:
+        print("\n❌ Could not obtain student token")
+        print("\nPossible issues:")
+        print("  1. Student users don't have 'student' role in database")
+        print("  2. Student password is incorrect (should be 'Test@1234')")
+        print("  3. Student accounts weren't created during seeding")
+        print("\nFix: Run 'python -m scripts.seed_data --clean' to regenerate student accounts")
+
+if __name__ == "__main__":
+    main()

@@ -46,6 +46,5 @@ class StudentRepository:
         result = await self.session.execute(select(User).where(User.id == user_id))
         user = result.scalar_one_or_none()
         if user is not None:
-            user.role = UserRole.STUDENT
-        await self.session.flush()
+            user.role = UserRole.STUDENT  # ← Promotes visitor to student
         return user
