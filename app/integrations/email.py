@@ -16,6 +16,9 @@ logger = logging.getLogger(__name__)
 
 def _is_configured() -> bool:
     s = get_settings()
+    if s.email_provider.lower() == "brevo":
+        return bool(s.brevo_api_key)
+
     placeholders = {
         "", "your-mailtrap-username", "your-email@gmail.com",
         "your-gmail@gmail.com", "your-mailtrap-password",
@@ -53,19 +56,63 @@ async def _send_smtp(*, to: str, subject: str, html: str) -> None:
     )
 
 
+async def _send_brevo(*, to: str, subject: str, html: str) -> None:
+    """Send email via Brevo REST API. Raises on failure."""
+    import httpx
+
+    s = get_settings()
+    sender_email = s.brevo_sender_email or s.email_from
+    
+    headers = {
+        "accept": "application/json",
+        "api-key": s.brevo_api_key,
+        "content-type": "application/json",
+    }
+    
+    payload = {
+        "sender": {
+            "name": "StayEase",
+            "email": sender_email
+        },
+        "to": [
+            {
+                "email": to
+            }
+        ],
+        "subject": subject,
+        "htmlContent": html
+    }
+    
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            "https://api.brevo.com/v3/smtp/email",
+            headers=headers,
+            json=payload,
+            timeout=s.email_send_timeout
+        )
+        if response.status_code >= 400:
+            logger.error(f"[EMAIL] Brevo API error {response.status_code}: {response.text}")
+            raise Exception(f"Brevo API error: {response.text}")
+
+
 async def send_email(*, to: str, subject: str, html: str) -> bool:
     """
     Send an HTML email. Returns True on success, False on failure.
     Always logs to console (useful for dev/test).
     """
     logger.info(f"[EMAIL] To: {to} | Subject: {subject}")
+    s = get_settings()
 
     if not _is_configured():
-        logger.info("[EMAIL] SMTP not configured — email logged only (dev mode)")
+        logger.info("[EMAIL] Email provider not fully configured — email logged only (dev mode)")
+        logger.info(f"[EMAIL] Dev mode raw HTML sample: {html[:200]}...")
         return True
 
     try:
-        await _send_smtp(to=to, subject=subject, html=html)
+        if s.email_provider.lower() == "brevo":
+            await _send_brevo(to=to, subject=subject, html=html)
+        else:
+            await _send_smtp(to=to, subject=subject, html=html)
         logger.info(f"[EMAIL] Sent successfully to {to}")
         return True
     except Exception as exc:

@@ -7,10 +7,22 @@ from app.config import get_settings
 
 settings = get_settings()
 
-# Configure SSL for asyncpg - Render PostgreSQL requires SSL
-ssl_context = ssl.create_default_context()
-ssl_context.check_hostname = False
-ssl_context.verify_mode = ssl.CERT_NONE
+# Configure SSL for asyncpg if not localhost/127.0.0.1
+connect_args = {
+    "server_settings": {
+        "application_name": "stayease_api",
+        "statement_timeout": "30000",
+        "idle_in_transaction_session_timeout": "60000",
+    },
+    "timeout": 30,
+    "command_timeout": 30,
+}
+
+if "localhost" not in settings.database_url and "127.0.0.1" not in settings.database_url:
+    ssl_context = ssl.create_default_context()
+    ssl_context.check_hostname = False
+    ssl_context.verify_mode = ssl.CERT_NONE
+    connect_args["ssl"] = ssl_context
 
 # Create engine with OPTIMIZED settings for remote database
 engine = create_async_engine(
@@ -22,16 +34,7 @@ engine = create_async_engine(
     pool_timeout=settings.database_pool_timeout,
     pool_pre_ping=settings.database_pool_pre_ping,
     pool_recycle=3600,
-    connect_args={
-        "ssl": ssl_context,
-        "server_settings": {
-            "application_name": "stayease_api",
-            "statement_timeout": "30000",
-            "idle_in_transaction_session_timeout": "60000",
-        },
-        "timeout": 30,
-        "command_timeout": 30,
-    }
+    connect_args=connect_args
 )
 
 AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False, autoflush=False)

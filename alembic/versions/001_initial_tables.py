@@ -20,23 +20,23 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     # ─── ENUMS ────────────────────────────────────────────────────────────────
-    userrole_enum = sa.Enum('super_admin', 'hostel_admin', 'supervisor', 'student', 'visitor', name='userrole')
-    otptype_enum = sa.Enum('registration', 'password_reset', name='otptype')
-    hosteltype_enum = sa.Enum('boys', 'girls', 'co-living', name='hosteltype')
-    hostelstatus_enum = sa.Enum('pending_approval', 'active', 'inactive', 'suspended', 'rejected', name='hostelstatus')
-    roomtype_enum = sa.Enum('single', 'double', 'triple', 'dormitory', name='roomtype')
-    bedstatus_enum = sa.Enum('available', 'occupied', 'maintenance', 'reserved', name='bedstatus')
-    bookingmode_enum = sa.Enum('daily', 'monthly', name='bookingmode')
+    userrole_enum = sa.Enum('SUPER_ADMIN', 'HOSTEL_ADMIN', 'SUPERVISOR', 'STUDENT', 'VISITOR', name='userrole')
+    otptype_enum = sa.Enum('REGISTRATION', 'PASSWORD_RESET', name='otptype')
+    hosteltype_enum = sa.Enum('BOYS', 'GIRLS', 'COED', name='hosteltype')
+    hostelstatus_enum = sa.Enum('PENDING_APPROVAL', 'ACTIVE', 'INACTIVE', 'SUSPENDED', 'REJECTED', name='hostelstatus')
+    roomtype_enum = sa.Enum('SINGLE', 'DOUBLE', 'TRIPLE', 'DORMITORY', name='roomtype')
+    bedstatus_enum = sa.Enum('AVAILABLE', 'OCCUPIED', 'MAINTENANCE', 'RESERVED', name='bedstatus')
+    bookingmode_enum = sa.Enum('DAILY', 'MONTHLY', name='bookingmode')
     bookingstatus_enum = sa.Enum(
-        'draft', 'payment_pending', 'pending_approval', 'approved',
-        'rejected', 'checked_in', 'checked_out', 'completed', 'cancelled',
+        'DRAFT', 'PAYMENT_PENDING', 'PENDING_APPROVAL', 'APPROVED',
+        'REJECTED', 'CHECKED_IN', 'CHECKED_OUT', 'COMPLETED', 'CANCELLED',
         name='bookingstatus'
     )
-    bedstaystatus_enum = sa.Enum('reserved', 'active', 'completed', 'cancelled', name='bedstaystatus')
-    waitliststatus_enum = sa.Enum('active', 'notified', 'converted', 'cancelled', name='waitliststatus')
-    studentstatus_enum = sa.Enum('active', 'checked_out', 'on_leave', name='studentstatus')
-    planstatus_enum = sa.Enum('active', 'inactive', name='planstatus')
-    durationtype_enum = sa.Enum('monthly', 'quarterly', 'yearly', 'custom', name='durationtype')
+    bedstaystatus_enum = sa.Enum('RESERVED', 'ACTIVE', 'COMPLETED', 'CANCELLED', name='bedstaystatus')
+    waitliststatus_enum = sa.Enum('ACTIVE', 'NOTIFIED', 'CONVERTED', 'CANCELLED', name='waitliststatus')
+    studentstatus_enum = sa.Enum('ACTIVE', 'CHECKED_OUT', 'ON_LEAVE', name='studentstatus')
+    planstatus_enum = sa.Enum('ACTIVE', 'INACTIVE', name='planstatus')
+    durationtype_enum = sa.Enum('MONTHLY', 'QUARTERLY', 'YEARLY', 'CUSTOM', name='durationtype')
 
     # ─── USERS ────────────────────────────────────────────────────────────────
     op.create_table(
@@ -100,7 +100,7 @@ def upgrade() -> None:
         sa.Column('slug', sa.String(255), nullable=False),
         sa.Column('description', sa.Text(), nullable=False),
         sa.Column('hostel_type', hosteltype_enum, nullable=False),
-        sa.Column('status', hostelstatus_enum, nullable=False, server_default='pending_approval'),
+        sa.Column('status', hostelstatus_enum, nullable=False, server_default='PENDING_APPROVAL'),
         sa.Column('address_line1', sa.String(255), nullable=False),
         sa.Column('address_line2', sa.String(255), nullable=True),
         sa.Column('city', sa.String(120), nullable=False),
@@ -224,7 +224,7 @@ def upgrade() -> None:
         sa.Column('hostel_id', postgresql.UUID(as_uuid=True), sa.ForeignKey('hostels.id', ondelete='CASCADE'), nullable=False),
         sa.Column('room_id', postgresql.UUID(as_uuid=True), sa.ForeignKey('rooms.id', ondelete='CASCADE'), nullable=False),
         sa.Column('bed_number', sa.String(50), nullable=False),
-        sa.Column('status', bedstatus_enum, nullable=False, server_default='available'),
+        sa.Column('status', bedstatus_enum, nullable=False, server_default='AVAILABLE'),
         sa.UniqueConstraint('room_id', 'bed_number', name='uq_bed_room_number'),
     )
     op.create_index('ix_beds_hostel_id', 'beds', ['hostel_id'])
@@ -241,12 +241,12 @@ def upgrade() -> None:
         sa.Column('description', sa.Text(), nullable=True),
         sa.Column('price_monthly', sa.Numeric(10, 2), nullable=False, server_default='0'),
         sa.Column('price_yearly', sa.Numeric(10, 2), nullable=False, server_default='0'),
-        sa.Column('duration_type', durationtype_enum, nullable=False, server_default='monthly'),
+        sa.Column('duration_type', durationtype_enum, nullable=False, server_default='MONTHLY'),
         sa.Column('duration_days', sa.Integer(), nullable=False, server_default='30'),
         sa.Column('hostel_limit', sa.Integer(), nullable=False, server_default='1'),
         sa.Column('admin_limit', sa.Integer(), nullable=False, server_default='1'),
         sa.Column('auto_renew_allowed', sa.Boolean(), nullable=False, server_default=sa.true()),
-        sa.Column('status', planstatus_enum, nullable=False, server_default='active'),
+        sa.Column('status', planstatus_enum, nullable=False, server_default='ACTIVE'),
     )
     op.create_index('ix_plans_name', 'plans', ['name'])
     op.create_index('ix_plans_code', 'plans', ['code'], unique=True)
@@ -341,7 +341,7 @@ def upgrade() -> None:
         sa.Column('student_number', sa.String(50), nullable=False),
         sa.Column('check_in_date', sa.Date(), nullable=False),
         sa.Column('check_out_date', sa.Date(), nullable=True),
-        sa.Column('status', studentstatus_enum, nullable=False, server_default='active'),
+        sa.Column('status', studentstatus_enum, nullable=False, server_default='ACTIVE'),
     )
     op.create_index('ix_students_user_id', 'students', ['user_id'])
     op.create_index('ix_students_hostel_id', 'students', ['hostel_id'])
@@ -398,7 +398,7 @@ def upgrade() -> None:
         sa.Column('check_in_date', sa.Date(), nullable=False),
         sa.Column('check_out_date', sa.Date(), nullable=False),
         sa.Column('booking_mode', bookingmode_enum, nullable=False),
-        sa.Column('status', waitliststatus_enum, nullable=False, server_default='active'),
+        sa.Column('status', waitliststatus_enum, nullable=False, server_default='ACTIVE'),
         sa.Column('notified_at', sa.Date(), nullable=True),
     )
     op.create_index('ix_waitlist_entries_visitor_id', 'waitlist_entries', ['visitor_id'])

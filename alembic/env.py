@@ -46,22 +46,25 @@ def do_run_migrations(connection: Connection) -> None:
 
 
 async def run_migrations_online() -> None:
-    # Build SSL context for Render PostgreSQL (requires SSL)
-    ssl_context = ssl.create_default_context()
-    ssl_context.check_hostname = False
-    ssl_context.verify_mode = ssl.CERT_NONE
-
     configuration = config.get_section(config.config_ini_section, {})
     configuration["sqlalchemy.url"] = settings.database_url
+
+    connect_args = {
+        "timeout": 30,
+    }
+
+    if "localhost" not in settings.database_url and "127.0.0.1" not in settings.database_url:
+        # Build SSL context for Render PostgreSQL (requires SSL)
+        ssl_context = ssl.create_default_context()
+        ssl_context.check_hostname = False
+        ssl_context.verify_mode = ssl.CERT_NONE
+        connect_args["ssl"] = ssl_context
 
     connectable = async_engine_from_config(
         configuration,
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
-        connect_args={
-            "ssl": ssl_context,
-            "timeout": 30,
-        },
+        connect_args=connect_args,
     )
 
     async with connectable.connect() as connection:

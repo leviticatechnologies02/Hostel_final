@@ -53,6 +53,10 @@ class Settings(BaseSettings):
     otp_max_attempts: int = 5
     
     # Email Configuration
+    email_provider: str = Field(default="smtp", description="Email provider: smtp or brevo")
+    brevo_api_key: str = Field(default="", description="Brevo API Key")
+    brevo_sender_email: str = Field(default="", description="Brevo Sender Email")
+    email_send_timeout: int = Field(default=10, description="Email send timeout in seconds")
     smtp_host: str = Field(default="smtp.gmail.com", description="SMTP server host")
     smtp_port: int = Field(default=587, description="SMTP server port")
     smtp_user: str = Field(default="", description="SMTP username")
