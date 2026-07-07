@@ -15,8 +15,9 @@ echo "Current directory: $(pwd)"
 echo ""
 echo "📦 Running database migrations..."
 alembic upgrade head
+echo "✅ Migrations complete."
 
-# Check if we should seed data (optional - only for development)
+# Check if we should seed data
 if [ "$SEED_DATA" = "true" ]; then
     echo ""
     echo "🌱 Seeding database with initial data..."
@@ -31,4 +32,4 @@ echo "=========================================="
 echo ""
 
 # Start the application
-exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --log-level info
+exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-10000} --log-level info
