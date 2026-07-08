@@ -126,11 +126,11 @@ class OTPService:
     ) -> bool:
         """Send OTP via email. Falls back to console log in dev if SMTP not configured."""
         # Always log for easy debugging
-        print(f"[OTP] {email} → {otp_code} (type={otp_type})")
+        print(f"[OTP EMAIL] {email} → {otp_code} (type={otp_type})")
 
         from app.integrations.email import EmailService, _is_configured
         if not _is_configured():
-            print("[OTP] SMTP not configured — OTP printed above (dev mode)")
+            print("[OTP] Email not configured — OTP printed above (dev mode)")
             return True
 
         try:
@@ -153,7 +153,47 @@ class OTPService:
             print(f"[OTP] Email send failed ({exc}) — OTP still valid: {otp_code}")
 
         return True
-    
+
+    async def send_otp_sms(
+        self,
+        phone: str,
+        otp_code: str,
+        otp_type: str,
+    ) -> bool:
+        """Send OTP via SMS using 2Factor.in. Falls back to console log if not configured."""
+        print(f"[OTP SMS] {phone} → {otp_code} (type={otp_type})")
+        try:
+            from app.integrations.sms import TwoFactorSMSClient
+            sms = TwoFactorSMSClient()
+            result = await sms.send_otp(phone=phone, otp=otp_code)
+            if result:
+                print(f"[OTP] SMS sent to {phone}")
+            else:
+                print(f"[OTP] SMS send failed for {phone} — OTP still valid via email")
+            return result
+        except Exception as exc:
+            # Never block registration/reset due to SMS failure
+            print(f"[OTP] SMS send error ({exc}) — OTP still valid via email")
+            return False
+
+    async def send_otp(
+        self,
+        email: str,
+        phone: str,
+        otp_code: str,
+        otp_type: str,
+    ) -> None:
+        """
+        Send OTP via BOTH email and SMS simultaneously.
+        Neither channel failing will block the OTP flow.
+        """
+        import asyncio
+        await asyncio.gather(
+            self.send_otp_email(email, otp_code, otp_type),
+            self.send_otp_sms(phone, otp_code, otp_type),
+            return_exceptions=True,
+        )
+
     async def resend_otp(
         self,
         user_id: str,
@@ -172,7 +212,8 @@ class OTPService:
             .values(is_used=True)
         )
         await self.session.execute(stmt)
-        
+
         # Create new OTP
         otp_code = await self.create_otp(user_id, otp_type)
         return otp_code
+

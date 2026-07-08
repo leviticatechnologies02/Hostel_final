@@ -47,6 +47,10 @@ class Settings(BaseSettings):
     razorpay_key_id: str = ""
     razorpay_key_secret: str = ""
     razorpay_webhook_secret: str = ""
+
+    # 2Factor SMS OTP
+    two_factor_api_key: str = Field(default="", description="2Factor.in Message API Key for SMS OTP")
+
     
     # OTP
     otp_expiry_minutes: int = 10

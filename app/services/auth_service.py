@@ -57,7 +57,8 @@ class AuthService:
             otp_type=OTPType.REGISTRATION.value,
         )
         await self.session.commit()
-        await otp_service.send_otp_email(user.email, otp_code, OTPType.REGISTRATION.value)
+        # Send OTP via Email + SMS simultaneously
+        await otp_service.send_otp(user.email, user.phone, otp_code, OTPType.REGISTRATION.value)
 
         return VisitorRegisterResponse(
             user_id=str(user.id),
@@ -224,9 +225,9 @@ class AuthService:
         )
         
         await self.session.commit()
-        
-        # Send OTP via email
-        await otp_service.send_otp_email(user.email, otp_code, OTPType.REGISTRATION.value)
+
+        # Send OTP via Email + SMS simultaneously
+        await otp_service.send_otp(user.email, user.phone, otp_code, OTPType.REGISTRATION.value)
         
         return {
             "message": "OTP resent.",
@@ -248,9 +249,9 @@ class AuthService:
         )
         
         await self.session.commit()
-        
-        # Send OTP via email
-        await otp_service.send_otp_email(user.email, otp_code, OTPType.PASSWORD_RESET.value)
+
+        # Send OTP via Email + SMS simultaneously
+        await otp_service.send_otp(user.email, user.phone, otp_code, OTPType.PASSWORD_RESET.value)
         
         return {
             "message": "Password reset OTP sent.",
