@@ -3,7 +3,6 @@ from __future__ import annotations
 from datetime import date, datetime, time
 from typing import TYPE_CHECKING
 
-from razorpay import Plan
 from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, ForeignKey, Numeric, String, Text, Time, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
