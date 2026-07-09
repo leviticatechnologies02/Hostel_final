@@ -494,14 +494,58 @@ async def upload_proxy(
 ):
     """
     Proxy upload endpoint to upload files directly to Cloudinary.
-    Accepts raw binary data as the PUT body (keeps compatibility with S3).
+    Accepts raw binary data as the PUT body (backwards-compatible with presigned URL flow).
     """
     body = await request.body()
     from app.integrations.cloudinary_client import get_cloudinary_client
-    
     url = await get_cloudinary_client().upload(
         file_name=filename,
         content=body,
         content_type=content_type
     )
     return {"url": url, "filename": filename, "status": "success"}
+
+
+# ==================== DIRECT UPLOAD (Swagger-Testable) ====================
+
+@router.post(
+    "/upload",
+    summary="Upload any file to Cloudinary",
+    tags=["Uploads"],
+)
+async def direct_upload(
+    file: "UploadFile" = "File(...)",
+    folder: str = "general",
+):
+    """
+    **Upload a file directly to Cloudinary.**
+
+    - Supports images (JPEG, PNG, WebP) and documents (PDF)
+    - Max file size: 10 MB
+    - Returns the permanent Cloudinary URL
+
+    Use this endpoint in Swagger UI to test file uploads.
+    The returned `url` can be stored as `profile_picture_url`, `id_document_url`, etc.
+    """
+    from fastapi import File, UploadFile as FU
+    from app.integrations.cloudinary_client import get_cloudinary_client
+
+    content = await file.read()
+    if len(content) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File size exceeds 10MB limit.")
+
+    allowed_types = {"image/jpeg", "image/png", "image/webp", "application/pdf"}
+    ct = (file.content_type or "application/octet-stream").lower()
+    if ct not in allowed_types:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file type '{ct}'. Allowed: image/jpeg, image/png, image/webp, application/pdf.",
+        )
+
+    filename = f"{folder}/{file.filename}"
+    url = await get_cloudinary_client().upload(
+        file_name=filename,
+        content=content,
+        content_type=ct,
+    )
+    return {"url": url, "filename": file.filename, "content_type": ct, "status": "success"}
