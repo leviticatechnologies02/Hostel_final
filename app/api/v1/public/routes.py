@@ -2,7 +2,7 @@
 
 from typing import Annotated
 from datetime import date as DateType
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, File, UploadFile
 from fastapi.responses import HTMLResponse
 
 from app.dependencies import DBSession, CurrentUser, require_roles
@@ -514,7 +514,7 @@ async def upload_proxy(
     tags=["Uploads"],
 )
 async def direct_upload(
-    file: "UploadFile" = "File(...)",
+    file: UploadFile = File(...),
     folder: str = "general",
 ):
     """
@@ -527,7 +527,6 @@ async def direct_upload(
     Use this endpoint in Swagger UI to test file uploads.
     The returned `url` can be stored as `profile_picture_url`, `id_document_url`, etc.
     """
-    from fastapi import File, UploadFile as FU
     from app.integrations.cloudinary_client import get_cloudinary_client
 
     content = await file.read()
