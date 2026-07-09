@@ -345,11 +345,20 @@ async def create_contact_lead(payload: ContactLeadCreate, db: DBSession):
 
     # Send confirmation email
     from app.integrations.email import EmailService
+    from app.config import get_settings
+    from datetime import datetime, timezone, timedelta
+    
+    settings = get_settings()
     full_name = f"{payload.first_name} {payload.last_name or ''}".strip()
     
+    # Generate IST time for the email
+    ist = timezone(timedelta(hours=5, minutes=30))
+    submitted_at = datetime.now(ist).strftime("%Y-%m-%d %I:%M %p IST")
+    
     # Do not block response on email failure
+    email_service = EmailService()
     try:
-        await EmailService().send_contact_lead_confirmation(
+        await email_service.send_contact_lead_confirmation(
             recipient_email=payload.email,
             recipient_name=full_name,
             hostel_name=payload.organization_name or "Not Provided",
@@ -359,6 +368,20 @@ async def create_contact_lead(payload: ContactLeadCreate, db: DBSession):
         )
     except Exception as e:
         print(f"[Email Error] Failed to send contact confirmation to {payload.email}: {e}")
+        
+    try:
+        await email_service.send_owner_contact_notification(
+            owner_email=settings.contact_owner_email,
+            first_name=payload.first_name,
+            last_name=payload.last_name or "",
+            organization_name=payload.organization_name or "Not Provided",
+            email=payload.email,
+            phone=payload.phone or "Not Provided",
+            message=payload.message,
+            submitted_at=submitted_at,
+        )
+    except Exception as e:
+        print(f"[Email Error] Failed to send owner contact notification to {settings.contact_owner_email}: {e}")
 
     return ContactLeadResponse(message="Your inquiry has been received. Our team will contact you shortly.")
 

@@ -57,6 +57,7 @@ class Settings(BaseSettings):
     otp_max_attempts: int = 5
     
     # Email Configuration
+    contact_owner_email: str = Field(default="hemantpawade48@gmail.com", description="SaaS Owner email for contact notifications")
     email_provider: str = Field(default="smtp", description="Email provider: smtp or brevo")
     brevo_api_key: str = Field(default="", description="Brevo API Key")
     brevo_sender_email: str = Field(default="", description="Brevo Sender Email")
