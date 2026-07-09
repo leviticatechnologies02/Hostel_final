@@ -260,38 +260,15 @@ def contact_lead_html(
     inquiry_type: str,
     message: str,
 ) -> str:
-    body = f"""
-<div class="hdr" style="background:#118AB2">
-  <h1>📧 Inquiry Received</h1>
-  <p>Thank you for your interest in StayEase</p>
-</div>
-<div class="body">
-  <p>Dear <strong>{full_name}</strong>,</p>
-  <p>We have successfully received your inquiry regarding <strong>"{inquiry_type}"</strong>.</p>
-  <p>Our team will review your request and contact you within 24 hours.</p>
-  
-  <div style="margin:20px 0;background:#f9f9f9;border-radius:8px;padding:20px">
-    <h3 style="margin-top:0;color:#333;font-size:16px;border-bottom:1px solid #ddd;padding-bottom:10px;">Your Inquiry Summary</h3>
-    <div class="row"><span class="lbl">Hostel Name</span><span class="val">{hostel_name}</span></div>
-    <div class="row"><span class="lbl">City</span><span class="val">{city}</span></div>
-    <div class="row"><span class="lbl">Inquiry Type</span><span class="val">{inquiry_type}</span></div>
-    <div class="row"><span class="lbl" style="width:100%;margin-bottom:8px;">Message:</span></div>
-    <div style="background:#fff;padding:12px;border:1px solid #eee;border-radius:4px;color:#555;font-style:italic;">{message}</div>
-  </div>
-  
-  <p>If your request is urgent, you can contact us directly:</p>
-  <p>
-    📞 +91 9032503559<br>
-    📧 hr@leviticatechnologies.com
-  </p>
-  <p>Thank you for choosing HostelHub.</p>
-  <p style="margin-top:20px;font-weight:bold;color:#118AB2;">
-    Regards,<br>
-    StayEase Team<br>
-    <span style="font-size:13px;color:#666;font-weight:normal;">Levitica Technologies Pvt. Ltd.</span>
-  </p>
-</div>"""
-    return _base("We received your inquiry — StayEase", "#118AB2", body)
+    """Delegate to the premium contact lead confirmation template."""
+    from app.integrations.email_templates_premium import contact_lead_html_v2
+    return contact_lead_html_v2(
+        full_name=full_name,
+        hostel_name=hostel_name,
+        city=city,
+        inquiry_type=inquiry_type,
+        message=message,
+    )
 
 
 # ── High-level helpers used by services ──────────────────────────────────────
@@ -385,48 +362,14 @@ def _owner_notification_html(
     message: str,
     submitted_at: str,
 ) -> str:
-    body = f"""
-<div class="hdr" style="background:#1a56db">
-  <h1>&#128236; New Contact Inquiry Received</h1>
-  <p>HostelHub Contact Portal &#8212; Action Required</p>
-</div>
-<div class="body">
-  <p>Hello Team,</p>
-  <p>A new inquiry has been submitted through the <strong>HostelHub Contact Form</strong>. Please take action within 24 hours.</p>
-
-  <div style="margin:20px 0;background:#f0f4ff;border-left:4px solid #1a56db;border-radius:4px;padding:16px">
-    <p style="font-size:13px;font-weight:700;color:#1a56db;margin-bottom:12px;letter-spacing:1px">CUSTOMER INFORMATION</p>
-    <div class="row"><span class="lbl">&#128100; Full Name</span><span class="val">{first_name} {last_name}</span></div>
-    <div class="row"><span class="lbl">&#127970; Hostel / Organization</span><span class="val">{organization_name}</span></div>
-    <div class="row"><span class="lbl">&#128231; Email Address</span><span class="val"><a href="mailto:{email}" style="color:#1a56db">{email}</a></span></div>
-    <div class="row"><span class="lbl">&#128241; Phone Number</span><span class="val">{phone}</span></div>
-  </div>
-
-  <div style="margin:20px 0">
-    <p style="font-size:13px;font-weight:700;color:#1a56db;margin-bottom:8px;letter-spacing:1px">CUSTOMER REQUIREMENT</p>
-    <div style="background:#f9f9f9;border:1px solid #e5e7eb;border-radius:6px;padding:14px;color:#444;white-space:pre-wrap;font-size:14px">{message}</div>
-  </div>
-
-  <div style="margin:20px 0;background:#f9f9f9;border-left:4px solid #6b7280;border-radius:4px;padding:16px">
-    <p style="font-size:13px;font-weight:700;color:#6b7280;margin-bottom:12px;letter-spacing:1px">SUBMISSION DETAILS</p>
-    <div class="row"><span class="lbl">&#128197; Submitted On</span><span class="val">{submitted_at}</span></div>
-    <div class="row"><span class="lbl">&#127760; Source</span><span class="val">StayEase Website &#8212; Contact Form</span></div>
-    <div class="row"><span class="lbl">&#128279; Page</span><span class="val">Contact Us</span></div>
-  </div>
-
-  <div style="margin:20px 0;background:#f0fdf4;border-left:4px solid #16a34a;border-radius:4px;padding:16px">
-    <p style="font-size:13px;font-weight:700;color:#16a34a;margin-bottom:10px;letter-spacing:1px">ACTION REQUIRED</p>
-    <div style="margin-bottom:6px">&#9989; Contact the customer within 24 hours.</div>
-    <div style="margin-bottom:6px">&#9989; Understand their hostel management requirements.</div>
-    <div style="margin-bottom:6px">&#9989; Schedule a personalized product demonstration.</div>
-    <div style="margin-bottom:6px">&#9989; Explain HostelHub features, pricing, implementation process, and onboarding.</div>
-    <div>&#9989; Answer all customer questions and update the inquiry status.</div>
-  </div>
-
-  <hr style="border:0;border-top:1px solid #e5e7eb;margin:24px 0">
-  <p style="font-size:12px;color:#9ca3af;text-align:center">
-    This is an automated notification generated by the HostelHub Contact Portal.<br>
-    <strong style="color:#374151">HostelHub &mdash; Levitica Technologies Pvt. Ltd.</strong>
-  </p>
-</div>"""
-    return _base("New Lead | HostelHub Contact Portal", "#1a56db", body)
+    """Delegate to the premium owner notification template."""
+    from app.integrations.email_templates_premium import owner_notification_html_v2
+    return owner_notification_html_v2(
+        first_name=first_name,
+        last_name=last_name,
+        organization_name=organization_name,
+        email=email,
+        phone=phone,
+        message=message,
+        submitted_at=submitted_at,
+    )
