@@ -15,6 +15,7 @@ from app.schemas.hostel import (
 )
 from app.schemas.payment import BookingPaymentCreateRequest, BookingPaymentOrderResponse
 from app.schemas.room import RoomResponse
+from app.schemas.contact import ContactLeadCreate, ContactLeadResponse
 from app.services.booking_service import BookingService
 from app.services.hostel_service import HostelService
 from app.services.payment_write_service import PaymentWriteService
@@ -320,6 +321,46 @@ async def create_inquiry(payload: InquiryRequest, db: DBSession):
     db.add(inquiry)
     await db.commit()
     return {"message": "Inquiry received.", "hostel_id": payload.hostel_id}
+
+
+@router.post("/contact", response_model=ContactLeadResponse, status_code=201)
+async def create_contact_lead(payload: ContactLeadCreate, db: DBSession):
+    """Submit a SaaS Lead Generation contact form."""
+    from app.models.contact import ContactLead
+    from app.services.auth_service import AuthService
+    
+    # Save the lead to database
+    lead = ContactLead(
+        first_name=payload.first_name,
+        last_name=payload.last_name,
+        email=payload.email,
+        phone=payload.phone,
+        organization_name=payload.organization_name,
+        message=payload.message,
+        inquiry_type=payload.inquiry_type,
+        city=payload.city,
+    )
+    db.add(lead)
+    await db.commit()
+
+    # Send confirmation email
+    from app.integrations.email import EmailService
+    full_name = f"{payload.first_name} {payload.last_name or ''}".strip()
+    
+    # Do not block response on email failure
+    try:
+        await EmailService().send_contact_lead_confirmation(
+            recipient_email=payload.email,
+            recipient_name=full_name,
+            hostel_name=payload.organization_name or "Not Provided",
+            city=payload.city or "Not Provided",
+            inquiry_type=payload.inquiry_type or "Software Demo / Inquiry",
+            message=payload.message,
+        )
+    except Exception as e:
+        print(f"[Email Error] Failed to send contact confirmation to {payload.email}: {e}")
+
+    return ContactLeadResponse(message="Your inquiry has been received. Our team will contact you shortly.")
 
 
 @router.post("/bookings", response_model=BookingResponse, status_code=201)

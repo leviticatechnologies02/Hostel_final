@@ -39,6 +39,7 @@ from app.models.operations import (  # noqa: F401
     Review,
     Subscription,
 )
+from app.models.contact import ContactLead  # noqa: F401
 
 __all__ = [
     # user
@@ -62,5 +63,6 @@ __all__ = [
     "Complaint", "ComplaintComment", "AttendanceRecord",
     "MaintenanceRequest", "Notice", "MessMenu", "MessMenuItem",
     "Subscription", "Review", "Notice", "NoticeRead", 
-
+    # contact
+    "ContactLead",
 ]

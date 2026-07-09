@@ -248,8 +248,50 @@ def welcome_email_html(name: str) -> str:
     ])}
   </div>
   <div style="text-align:center"><a href="http://localhost:5173/hostels" class="btn">Explore Hostels</a></div>
+  <p>Your journey to hassle-free hostel living starts now!</p>
 </div>"""
-    return _base("Welcome — StayEase", "#FF6B35", body)
+    return _base("Welcome to StayEase!", "#FF6B35", body)
+
+
+def contact_lead_html(
+    full_name: str,
+    hostel_name: str,
+    city: str,
+    inquiry_type: str,
+    message: str,
+) -> str:
+    body = f"""
+<div class="hdr" style="background:#118AB2">
+  <h1>📧 Inquiry Received</h1>
+  <p>Thank you for your interest in StayEase</p>
+</div>
+<div class="body">
+  <p>Dear <strong>{full_name}</strong>,</p>
+  <p>We have successfully received your inquiry regarding <strong>"{inquiry_type}"</strong>.</p>
+  <p>Our team will review your request and contact you within 24 hours.</p>
+  
+  <div style="margin:20px 0;background:#f9f9f9;border-radius:8px;padding:20px">
+    <h3 style="margin-top:0;color:#333;font-size:16px;border-bottom:1px solid #ddd;padding-bottom:10px;">Your Inquiry Summary</h3>
+    <div class="row"><span class="lbl">Hostel Name</span><span class="val">{hostel_name}</span></div>
+    <div class="row"><span class="lbl">City</span><span class="val">{city}</span></div>
+    <div class="row"><span class="lbl">Inquiry Type</span><span class="val">{inquiry_type}</span></div>
+    <div class="row"><span class="lbl" style="width:100%;margin-bottom:8px;">Message:</span></div>
+    <div style="background:#fff;padding:12px;border:1px solid #eee;border-radius:4px;color:#555;font-style:italic;">{message}</div>
+  </div>
+  
+  <p>If your request is urgent, you can contact us directly:</p>
+  <p>
+    📞 +91 9032503559<br>
+    📧 hr@leviticatechnologies.com
+  </p>
+  <p>Thank you for choosing HostelHub.</p>
+  <p style="margin-top:20px;font-weight:bold;color:#118AB2;">
+    Regards,<br>
+    StayEase Team<br>
+    <span style="font-size:13px;color:#666;font-weight:normal;">Levitica Technologies Pvt. Ltd.</span>
+  </p>
+</div>"""
+    return _base("We received your inquiry — StayEase", "#118AB2", body)
 
 
 # ── High-level helpers used by services ──────────────────────────────────────
@@ -302,4 +344,14 @@ class EmailService:
             to=recipient_email,
             subject="Welcome to StayEase! 🎉",
             html=welcome_email_html(recipient_name),
+        )
+
+    async def send_contact_lead_confirmation(
+        self, *, recipient_email: str, recipient_name: str,
+        hostel_name: str, city: str, inquiry_type: str, message: str
+    ) -> bool:
+        return await send_email(
+            to=recipient_email,
+            subject="We received your inquiry — StayEase",
+            html=contact_lead_html(recipient_name, hostel_name, city, inquiry_type, message),
         )
