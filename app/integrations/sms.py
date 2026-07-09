@@ -54,7 +54,8 @@ class TwoFactorSMSClient:
             print(f"[SMS OTP] {phone_normalized} → {otp}")
             return True
 
-        url = f"{TWOFACTOR_BASE_URL}/{self.api_key}/SMS/{phone_normalized}/{otp}"
+        # Force SMS delivery by using the pre-approved 'OTP1' template
+        url = f"{TWOFACTOR_BASE_URL}/{self.api_key}/SMS/{phone_normalized}/{otp}/OTP1"
         try:
             async with httpx.AsyncClient(timeout=10) as client:
                 resp = await client.get(url)
