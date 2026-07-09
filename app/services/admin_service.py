@@ -299,6 +299,30 @@ class AdminService:
         return bed
 
 
+    async def delete_student(self, student_id: str) -> None:
+        """
+        Hard delete a student. 
+        Unlinks payments and bookings to avoid foreign key constraints.
+        """
+        result = await self.session.execute(select(Student).where(Student.id == student_id))
+        student = result.scalar_one_or_none()
+        if not student:
+            raise HTTPException(status_code=404, detail="Student not found.")
+            
+        # Unlink payments
+        await self.session.execute(
+            update(Payment).where(Payment.student_id == student_id).values(student_id=None)
+        )
+        
+        # Free up the bed
+        if student.bed_id:
+            await self.session.execute(
+                update(Bed).where(Bed.id == student.bed_id).values(status="available")
+            )
+            
+        await self.session.delete(student)
+        await self.session.commit()
+
     async def list_students(self, hostel_id: str) -> list[dict]:
         """List all checked-in students for a hostel."""
         students_data = await self.repository.list_students(hostel_id)

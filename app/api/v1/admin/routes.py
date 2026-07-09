@@ -1140,6 +1140,33 @@ async def delete_complaint(
     
     return Response(status_code=204)
 
+@router.delete("/students/{student_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_student(
+    student_id: str,
+    db: DBSession,
+    current_user: AdminUser,
+):
+    """
+    Hard delete a student. 
+    Warning: Unlinks payments and bookings, and deletes all linked attendance/complaint records.
+    """
+    from app.models.student import Student
+    from sqlalchemy import select
+    
+    # Check if admin has access to this student's hostel
+    result = await db.execute(select(Student).where(Student.id == student_id))
+    student = result.scalar_one_or_none()
+    
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found.")
+        
+    if str(student.hostel_id) not in current_user.hostel_ids and current_user.role != "super_admin":
+        raise HTTPException(status_code=403, detail="You don't have permission to delete this student.")
+        
+    await AdminService(db).delete_student(student_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 @router.get("/students/{student_id}", response_model=StudentResponse)
 async def get_student(
     student_id: str,
