@@ -420,3 +420,24 @@ async def check_hostel_subscription_status(
         "subscription_end_date": subscription.end_date.isoformat(),
         "message": "Hostel has an active subscription."
     }
+
+
+@router.put("/upload-proxy")
+async def upload_proxy(
+    request: Request,
+    filename: str,
+    content_type: str,
+):
+    """
+    Proxy upload endpoint to upload files directly to Cloudinary.
+    Accepts raw binary data as the PUT body (keeps compatibility with S3).
+    """
+    body = await request.body()
+    from app.integrations.cloudinary_client import get_cloudinary_client
+    
+    url = await get_cloudinary_client().upload(
+        file_name=filename,
+        content=body,
+        content_type=content_type
+    )
+    return {"url": url, "filename": filename, "status": "success"}

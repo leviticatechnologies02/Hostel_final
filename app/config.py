@@ -73,6 +73,11 @@ class Settings(BaseSettings):
     aws_storage_bucket_name: str = Field(default="stayease-uploads", description="S3 bucket name")
     aws_region: str = Field(default="ap-south-1", description="AWS region")
 
+    # Cloudinary Configuration
+    cloudinary_cloud_name: str = Field(default="", description="Cloudinary cloud name")
+    cloudinary_api_key: str = Field(default="", description="Cloudinary API key")
+    cloudinary_api_secret: str = Field(default="", description="Cloudinary API secret")
+
     @field_validator("database_url", mode="before")
     @classmethod
     def clean_database_url(cls, v: str) -> str:

@@ -471,6 +471,7 @@ async def delete_my_complaint(
 async def create_presigned_upload_url(
     payload: PresignedUploadRequest,
     current_user: Annotated[CurrentUser, Depends(require_roles("student", "visitor", "hostel_admin", "super_admin"))],
+    request: Request,
 ):
     """Generate S3 presigned upload URL for student complaint attachments."""
     allowed_types = {
@@ -490,9 +491,12 @@ async def create_presigned_upload_url(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="File size exceeds 10MB limit.",
         )
-    return await get_s3_client().get_presigned_upload_url(
+    from app.integrations.cloudinary_client import get_cloudinary_client
+    base_url = str(request.base_url).rstrip('/')
+    return await get_cloudinary_client().get_presigned_upload_url(
         file_name=payload.file_name,
         content_type=content_type,
+        api_base_url=base_url
     )
 
 

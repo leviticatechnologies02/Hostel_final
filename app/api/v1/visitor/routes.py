@@ -738,6 +738,7 @@ async def visitor_leave_waitlist(
 async def visitor_presigned_upload_url(
     payload: PresignedUploadRequest,
     current_user: VisitorUser,
+    request: Request,
 ):
     """
     **Generate S3 presigned upload URL for visitor documents (ID proof, etc.).**
@@ -762,10 +763,12 @@ async def visitor_presigned_upload_url(
             detail="File size exceeds 10MB limit.",
         )
     
-    from app.integrations.s3 import get_s3_client
-    return await get_s3_client().get_presigned_upload_url(
+    from app.integrations.cloudinary_client import get_cloudinary_client
+    base_url = str(request.base_url).rstrip('/')
+    return await get_cloudinary_client().get_presigned_upload_url(
         file_name=payload.file_name,
         content_type=content_type,
+        api_base_url=base_url
     )
     
 @router.post("/change-password")
