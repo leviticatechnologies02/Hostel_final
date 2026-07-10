@@ -50,7 +50,7 @@ All accounts use password: **`Test@1234`**
 | 🧑‍🎓 Student (Hemant) | `hemant.pawade.lev044@levitica.in` | Student self-service |
 | 🙋 Visitor | `arun.kapoor@gmail.com` | Public booking flow |
 
-> 63 student accounts from Levitica employee register — pattern: `firstname.lastname.LEVXXX@levitica.in`
+> 63 student accounts from Levitica employee register — pattern: `firstname.lastname.levxxx@levitica.in`
 
 **How to authenticate:**
 1. Call `POST /api/v1/auth/login` with email + password
@@ -59,7 +59,7 @@ All accounts use password: **`Test@1234`**
 
 ---
 
-## 🗺️ API Sections (126 routes)
+## 🗺️ API Sections (228 routes)
 
 ### 🌐 `public` — No auth required
 Browse hostels, view rooms, read reviews, submit inquiries, search autocomplete, compare hostels.
