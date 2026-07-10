@@ -42,13 +42,13 @@ All accounts use password: **`Test@1234`**
 
 | Role | Email | Access |
 |------|-------|--------|
-| 🛡️ Super Admin | `superadmin@stayease.com` | Full platform control |
-| 🏢 Hostel Admin 1 | `admin1@stayease.com` | Hyderabad + Pune hostels |
-| 🏢 Hostel Admin 2 | `admin2@stayease.com` | Bangalore + Mumbai hostels |
-| 👷 Supervisor 1 | `supervisor1@stayease.com` | Green Valley Boys Hostel (Hyderabad) |
-| 👷 Supervisor 2 | `supervisor2@stayease.com` | Pearl Girls Hostel (Bangalore) |
-| 🧑‍🎓 Student (Hemant) | `hemant.pawade.lev044@levitica.in` | Student self-service |
-| 🙋 Visitor | `arun.kapoor@gmail.com` | Public booking flow |
+| 🛡️ Super Admin | `superadmin@stayease.com` | Approve hostels, create admins, manage subscriptions, full platform |
+| 🏢 Hostel Admin 1 | `admin1@stayease.com` | Rooms, beds, bookings, students, complaints, attendance — Hyderabad + Pune |
+| 🏢 Hostel Admin 2 | `admin2@stayease.com` | Rooms, beds, bookings, students, complaints, attendance — Bangalore + Mumbai |
+| 👷 Supervisor 1 | `supervisor1@stayease.com` | Attendance, complaints, maintenance, notices, mess menu — Green Valley (Hyderabad) |
+| 👷 Supervisor 2 | `supervisor2@stayease.com` | Attendance, complaints, maintenance, notices, mess menu — Pearl Girls (Bangalore) |
+| 🧑‍🎓 Student (Hemant) | `hemant.pawade.lev044@levitica.in` | Own profile, bookings, payments, attendance, complaints, notices |
+| 🙋 Visitor | `arun.kapoor@gmail.com` | Browse hostels, create bookings, pay, write reviews, manage favorites |
 
 > 63 student accounts from Levitica employee register — pattern: `firstname.lastname.levxxx@levitica.in`
 
