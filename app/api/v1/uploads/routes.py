@@ -64,7 +64,7 @@ async def _cloudinary_upload(file_name: str, content: bytes, ct: str) -> str:
 @router.post(
     "/profile-picture",
     summary="Upload profile picture",
-    tags=["Uploads"],
+    tags=["uploads"],
 )
 async def upload_profile_picture(
     current_user: AnyAuthUser,
@@ -104,7 +104,7 @@ async def upload_profile_picture(
 @router.post(
     "/hostel-registration-document",
     summary="Upload hostel registration document",
-    tags=["Uploads"],
+    tags=["uploads"],
 )
 async def upload_hostel_registration_document(
     file: UploadFile = File(..., description="Business registration doc — JPEG / PNG / PDF (max 10 MB)"),
@@ -135,7 +135,7 @@ async def upload_hostel_registration_document(
 @router.post(
     "/id-document",
     summary="Upload ID document",
-    tags=["Uploads"],
+    tags=["uploads"],
 )
 async def upload_id_document(
     current_user: AnyAuthUser,
@@ -165,7 +165,7 @@ async def upload_id_document(
 @router.post(
     "/complaint-attachment",
     summary="Upload complaint attachment",
-    tags=["Uploads"],
+    tags=["uploads"],
 )
 async def upload_complaint_attachment(
     current_user: AnyAuthUser,
@@ -194,7 +194,7 @@ async def upload_complaint_attachment(
 @router.post(
     "/booking-document/{booking_id}",
     summary="Upload booking ID document",
-    tags=["Uploads"],
+    tags=["uploads"],
 )
 async def upload_booking_document(
     booking_id: str,
@@ -264,7 +264,7 @@ async def upload_booking_document(
 @router.post(
     "/hostel-image/{hostel_id}",
     summary="Upload hostel image",
-    tags=["Uploads"],
+    tags=["uploads"],
     status_code=201,
 )
 async def upload_hostel_image(
@@ -348,7 +348,7 @@ async def upload_hostel_image(
 @router.delete(
     "/hostel-image/{hostel_id}/{image_id}",
     summary="Delete hostel image",
-    tags=["Uploads"],
+    tags=["uploads"],
     status_code=204,
 )
 async def delete_hostel_image(

@@ -230,6 +230,27 @@ _TAGS_METADATA = [
                        "hostel performance metrics, and complaint analysis with "
                        "CSV/JSON export capabilities.",
     },
+    {
+        "name": "visitor",
+        "description": "🙋 **Visitor** — visitor self-service portal. "
+                       "Manage profile, booking history, reviews, and favorites.",
+    },
+    {
+        "name": "bookings",
+        "description": "📅 **Bookings** — centralized booking management and operational flows.",
+    },
+    {
+        "name": "plans",
+        "description": "💳 **Subscription Plans** — view and manage hostel pricing plans.",
+    },
+    {
+        "name": "payments",
+        "description": "💸 **Payments** — check payment transactions, status details, and ledger reports.",
+    },
+    {
+        "name": "uploads",
+        "description": "📁 **Uploads** — centralized file upload endpoints (images, documents). All files go directly to Cloudinary.",
+    },
 ]
 
 # ─────────────────────────────────────────────────────────────────────────────

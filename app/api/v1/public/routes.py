@@ -533,7 +533,7 @@ async def upload_proxy(
 @router.post(
     "/upload",
     summary="Upload any file to Cloudinary",
-    tags=["Uploads"],
+    tags=["uploads"],
 )
 async def direct_upload(
     file: UploadFile = File(...),
