@@ -641,7 +641,7 @@ async def root():
       const [activeTab, setActiveTab] = useState("dashboard");
       const [stats, setStats] = useState(null);
       const [openapi, setOpenapi] = useState(null);
-      const [refreshInterval, setRefreshInterval] = useState(15000);
+      const [refreshInterval, setRefreshInterval] = useState(60000);
       const [logs, setLogs] = useState([]);
       const [metricsHistory, setMetricsHistory] = useState({ cpu: [], memory: [], rps: [] });
       const [activities, setActivities] = useState([]);
