@@ -23,6 +23,17 @@ from app.models.operations import Subscription
 from datetime import date
 
 from app.models.room import Room, Bed
+
+async def _send_email(to: str, subject: str, body: str):
+    from app.integrations.email import send_email
+    # Convert newline to <br> for simple HTML
+    html_body = body.replace("\n", "<br>")
+    try:
+        await send_email(to=to, subject=subject, html=html_body)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Failed to send email to {to}: {e}")
+
 from app.models.booking import Booking
 
 class SuperAdminService:
@@ -76,7 +87,12 @@ class SuperAdminService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Hostel not found.")
         return hostel
 
-    async def create_hostel(self, payload: SuperAdminHostelCreateRequest):
+    async def create_hostel(
+        self,
+        payload: SuperAdminHostelCreateRequest,
+        owner_id: str | None = None,
+    ):
+        """Create a hostel in PENDING_APPROVAL state with all public flags disabled."""
         hostel = Hostel(
             name=payload.name,
             slug=payload.slug,
@@ -94,22 +110,265 @@ class SuperAdminService:
             phone=payload.phone,
             email=payload.email,
             website=payload.website,
-            is_featured=payload.is_featured,
-            is_public=payload.is_public,
+            is_featured=False,
+            is_public=False,      # MUST be False until approved
+            is_active=False,      # MUST be False until approved
+            is_verified=False,    # MUST be False until approved
+            status_reason=None,
             rules_and_regulations=payload.rules_and_regulations,
         )
         hostel = await self.repository.create_hostel(hostel)
+        await self.session.flush()
+
+        # Map the submitting owner as the primary admin of this hostel
+        if owner_id:
+            from app.models.hostel import AdminHostelMapping
+            mapping = AdminHostelMapping(
+                admin_id=owner_id,
+                hostel_id=str(hostel.id),
+                is_primary=True,
+                assigned_by=owner_id,
+            )
+            self.session.add(mapping)
+
         await self.session.commit()
         await self.session.refresh(hostel)
         return hostel
 
+    async def register_hostel(self, payload, owner_id: str):
+        """
+        Public registration — hostel owner submits registration form.
+        Stores with PENDING_APPROVAL, is_public=False, is_active=False, is_verified=False.
+        Sends notification to super admins.
+        """
+        from app.schemas.hostel import HostelRegistrationRequest
+        from app.schemas.super_admin import SuperAdminHostelCreateRequest
+
+        # Build a SuperAdminHostelCreateRequest-compatible payload using the registration data
+        create_payload = SuperAdminHostelCreateRequest(
+            name=payload.name,
+            slug=payload.slug,
+            description=payload.description,
+            hostel_type=payload.hostel_type,
+            address_line1=payload.address_line1,
+            address_line2=payload.address_line2,
+            city=payload.city,
+            state=payload.state,
+            country=payload.country,
+            pincode=payload.pincode,
+            latitude=payload.latitude,
+            longitude=payload.longitude,
+            phone=payload.phone,
+            email=payload.email,
+            website=payload.website,
+            is_featured=False,
+            is_public=False,
+            rules_and_regulations=payload.rules_and_regulations,
+        )
+
+        hostel = await self.create_hostel(create_payload, owner_id=owner_id)
+
+        # Save document info if provided
+        if payload.document_url:
+            hostel.document_url = payload.document_url
+            hostel.document_type = payload.document_type
+            await self.session.commit()
+            await self.session.refresh(hostel)
+
+        # Send notification email to hostel owner
+        await _send_email(
+            to=payload.email,
+            subject="✅ Your Hostel Registration Was Received — StayEase",
+            body=(
+                f"Hi,\n\n"
+                f"Thank you for registering '{payload.name}' on StayEase.\n\n"
+                f"Your registration is now under review. Our team will inspect your details and "
+                f"get back to you within 2–3 business days.\n\n"
+                f"You will receive an email once it is approved, rejected, or if we need any changes.\n\n"
+                f"Regards,\nThe StayEase Team"
+            ),
+        )
+        return hostel
+
     async def update_hostel_status(self, hostel_id: str, status_value: HostelStatus):
+        """Legacy simple status update — used by internal admin tools."""
         hostel = await self.repository.get_hostel_by_id(hostel_id)
         if hostel is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Hostel not found.")
         hostel.status = status_value
+        if status_value == HostelStatus.ACTIVE:
+            hostel.is_public  = True
+            hostel.is_active  = True
+            hostel.is_verified = True
+        elif status_value in (HostelStatus.REJECTED, HostelStatus.SUSPENDED, HostelStatus.INACTIVE):
+            hostel.is_public  = False
+            hostel.is_active  = False
         await self.session.commit()
         await self.session.refresh(hostel)
+        return hostel
+
+    async def approve_hostel(
+        self,
+        hostel_id: str,
+        approved_by: str,
+        note: str | None = None,
+    ):
+        """
+        Approve a hostel registration:
+        - status → ACTIVE
+        - is_public, is_active, is_verified → True
+        - Notify the hostel owner via email
+        """
+        hostel = await self.repository.get_hostel_by_id(hostel_id)
+        if hostel is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Hostel not found.")
+
+        if hostel.status not in (
+            HostelStatus.PENDING_APPROVAL,
+            HostelStatus.CHANGES_REQUESTED,
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot approve hostel with status '{hostel.status.value}'.",
+            )
+
+        hostel.status      = HostelStatus.ACTIVE
+        hostel.is_public   = True
+        hostel.is_active   = True
+        hostel.is_verified = True
+        hostel.status_reason = None
+
+        await self.session.commit()
+        await self.session.refresh(hostel)
+
+        # Audit log
+        import logging
+        logging.getLogger(__name__).info(
+            "Hostel %s ('%s') APPROVED by user %s", hostel_id, hostel.name, approved_by
+        )
+
+        # Email notification to hostel owner
+        await _send_email(
+            to=hostel.email,
+            subject="🎉 Congratulations! Your Hostel is Now Live on StayEase",
+            body=(
+                f"Dear Owner of '{hostel.name}',\n\n"
+                f"We're delighted to inform you that your hostel registration has been "
+                f"APPROVED and is now live on StayEase.\n\n"
+                + (f"Note from our team: {note}\n\n" if note else "")
+                + f"Guests can now discover and book rooms at your hostel.\n\n"
+                f"Regards,\nThe StayEase Team"
+            ),
+        )
+        return hostel
+
+    async def reject_hostel(
+        self,
+        hostel_id: str,
+        rejected_by: str,
+        reason: str,
+    ):
+        """
+        Reject a hostel registration:
+        - status → REJECTED
+        - is_public, is_active, is_verified → False
+        - Store reason and notify owner
+        """
+        hostel = await self.repository.get_hostel_by_id(hostel_id)
+        if hostel is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Hostel not found.")
+
+        if hostel.status not in (
+            HostelStatus.PENDING_APPROVAL,
+            HostelStatus.CHANGES_REQUESTED,
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot reject hostel with status '{hostel.status.value}'.",
+            )
+
+        hostel.status        = HostelStatus.REJECTED
+        hostel.is_public     = False
+        hostel.is_active     = False
+        hostel.is_verified   = False
+        hostel.status_reason = reason
+
+        await self.session.commit()
+        await self.session.refresh(hostel)
+
+        import logging
+        logging.getLogger(__name__).info(
+            "Hostel %s ('%s') REJECTED by user %s. Reason: %s",
+            hostel_id, hostel.name, rejected_by, reason,
+        )
+
+        await _send_email(
+            to=hostel.email,
+            subject="❌ Hostel Registration Update — StayEase",
+            body=(
+                f"Dear Owner of '{hostel.name}',\n\n"
+                f"After reviewing your hostel registration, we regret to inform you that "
+                f"it has been REJECTED for the following reason:\n\n"
+                f"{reason}\n\n"
+                f"If you believe this is an error or would like to re-apply, please contact "
+                f"our support team.\n\n"
+                f"Regards,\nThe StayEase Team"
+            ),
+        )
+        return hostel
+
+    async def request_hostel_changes(
+        self,
+        hostel_id: str,
+        requested_by: str,
+        reason: str,
+    ):
+        """
+        Request changes from the hostel owner:
+        - status → CHANGES_REQUESTED
+        - is_public, is_active → False (keep hidden until fixes are made)
+        - Store reason and notify owner
+        """
+        hostel = await self.repository.get_hostel_by_id(hostel_id)
+        if hostel is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Hostel not found.")
+
+        if hostel.status not in (
+            HostelStatus.PENDING_APPROVAL,
+            HostelStatus.CHANGES_REQUESTED,
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot request changes on hostel with status '{hostel.status.value}'.",
+            )
+
+        hostel.status        = HostelStatus.CHANGES_REQUESTED
+        hostel.is_public     = False
+        hostel.is_active     = False
+        hostel.status_reason = reason
+
+        await self.session.commit()
+        await self.session.refresh(hostel)
+
+        import logging
+        logging.getLogger(__name__).info(
+            "Changes requested on hostel %s ('%s') by %s. Reason: %s",
+            hostel_id, hostel.name, requested_by, reason,
+        )
+
+        await _send_email(
+            to=hostel.email,
+            subject="📝 Action Required: Changes Needed for Your Hostel — StayEase",
+            body=(
+                f"Dear Owner of '{hostel.name}',\n\n"
+                f"Our review team has reviewed your hostel registration and requires some "
+                f"changes before we can approve it:\n\n"
+                f"{reason}\n\n"
+                f"Please update your hostel details and resubmit for review. "
+                f"If you have any questions, please reach out to our support team.\n\n"
+                f"Regards,\nThe StayEase Team"
+            ),
+        )
         return hostel
 
     async def list_admins(self):

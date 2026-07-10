@@ -98,7 +98,37 @@ async def upload_profile_picture(
 
 
 # ════════════════════════════════════════════════════════════════
-# 2. ID DOCUMENT  — visitor / student / any auth user
+# 2. HOSTEL REGISTRATION DOCUMENT — any authenticated user
+# ════════════════════════════════════════════════════════════════
+
+@router.post(
+    "/hostel-registration-document",
+    summary="Upload hostel registration document",
+    tags=["Uploads"],
+)
+async def upload_hostel_registration_document(
+    current_user: AnyAuthUser,
+    file: UploadFile = File(..., description="Business registration doc — JPEG / PNG / PDF (max 10 MB)"),
+):
+    """
+    Upload a document (like trade license, GST certificate) for hostel registration.
+
+    - Accepted types: **JPEG, PNG, WebP, PDF**
+    - Max size: **10 MB**
+    - Returns a `url` which you should pass as `document_url` when calling `POST /api/v1/public/hostels/register`.
+    """
+    content = await file.read()
+    ct = (file.content_type or "").lower()
+    _validate(content, ct, _DOC_TYPES, _MAX_DOC_MB, "Registration document")
+
+    path = _unique_name(current_user.id, file.filename, "registration-docs")
+    url  = await _cloudinary_upload(path, content, ct)
+
+    return {"url": url, "filename": file.filename, "status": "success"}
+
+
+# ════════════════════════════════════════════════════════════════
+# 3. ID DOCUMENT  — visitor / student / any auth user
 # ════════════════════════════════════════════════════════════════
 
 @router.post(

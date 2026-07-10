@@ -27,6 +27,7 @@ class HostelStatus(str, enum.Enum):
     INACTIVE = "inactive"
     SUSPENDED = "suspended"
     REJECTED = "rejected"
+    CHANGES_REQUESTED = "changes_requested"
 
 
 class Hostel(BaseModel):
@@ -52,6 +53,11 @@ class Hostel(BaseModel):
     website: Mapped[str | None] = mapped_column(String(255), nullable=True)
     is_featured: Mapped[bool] = mapped_column(Boolean, default=False)
     is_public: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_verified: Mapped[bool] = mapped_column(Boolean, default=False)
+    status_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    document_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    document_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
     rules_and_regulations: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Relationships

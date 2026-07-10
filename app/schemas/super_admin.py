@@ -24,11 +24,21 @@ class SuperAdminDashboardResponse(BaseModel):
 
 # Update the SuperAdminAdminCreateRequest class in app/schemas/super_admin.py
 
+from typing import Any
+from pydantic import BaseModel, Field, EmailStr, BeforeValidator
+from typing_extensions import Annotated
+from app.models.hostel import HostelType
+
+def lowercase_str(v: Any) -> Any:
+    if isinstance(v, str):
+        return v.lower()
+    return v
+
 class SuperAdminHostelCreateRequest(BaseModel):
     name: str = Field(min_length=2, max_length=255)
     slug: str = Field(min_length=2, max_length=255)
     description: str = Field(min_length=10)
-    hostel_type: str
+    hostel_type: Annotated[HostelType, BeforeValidator(lowercase_str)]
     address_line1: str = Field(min_length=2, max_length=255)
     address_line2: str | None = Field(default=None, max_length=255)
     city: str = Field(min_length=2, max_length=120)
@@ -74,8 +84,12 @@ class SuperAdminHostelResponse(TimestampedResponse):
     website: str | None = None
     is_featured: bool
     is_public: bool
+    is_active: bool = False
+    is_verified: bool = False
+    status_reason: str | None = None
+    document_url: str | None = None
+    document_type: str | None = None
     rules_and_regulations: str | None = None
-
 
 
 class SuperAdminAdminCreateRequest(BaseModel):
@@ -199,7 +213,15 @@ class SuperAdminHostelListResponse(BaseModel):
 
 
 class SuperAdminHostelRejectRequest(BaseModel):
-    reason: str
+    reason: str = Field(..., min_length=5, max_length=1000, description="Reason for rejection (shown to hostel owner)")
+
+
+class SuperAdminHostelRequestChangesRequest(BaseModel):
+    reason: str = Field(..., min_length=5, max_length=1000, description="Details of what needs to be changed")
+
+
+class SuperAdminHostelApproveRequest(BaseModel):
+    note: str | None = Field(default=None, max_length=500, description="Optional note to the hostel owner on approval")
 
 
 class SuperAdminSubscriptionResponse(TimestampedResponse):

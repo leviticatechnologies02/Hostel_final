@@ -12,6 +12,7 @@ from app.schemas.hostel import (
     InquiryRequest,
     PaginatedHostelListResponse,
     PublicCityResponse,
+    HostelRegistrationRequest,
 )
 from app.schemas.payment import BookingPaymentCreateRequest, BookingPaymentOrderResponse
 from app.schemas.room import RoomResponse
@@ -384,6 +385,27 @@ async def create_contact_lead(payload: ContactLeadCreate, db: DBSession):
         print(f"[Email Error] Failed to send owner contact notification to {settings.contact_owner_email}: {e}")
 
     return ContactLeadResponse(message="Your inquiry has been received. Our team will contact you shortly.")
+
+
+@router.post("/hostels/register", status_code=201)
+async def register_hostel(
+    payload: HostelRegistrationRequest,
+    db: DBSession,
+    current_user: VisitorUser,
+):
+    """
+    **Register a new hostel.**
+    Submits a hostel application for review by super admins.
+    The hostel is created with `pending_approval` status and is not public until approved.
+    """
+    from app.services.super_admin_service import SuperAdminService
+    from app.schemas.super_admin import SuperAdminHostelResponse
+    
+    # We use SuperAdminService.register_hostel internally
+    hostel = await SuperAdminService(db).register_hostel(payload=payload, owner_id=current_user.id)
+    # Convert and return using the response schema from SuperAdmin module 
+    # to show all status flags (is_active, is_verified, etc.)
+    return SuperAdminHostelResponse.model_validate(hostel, from_attributes=True)
 
 
 @router.post("/bookings", response_model=BookingResponse, status_code=201)

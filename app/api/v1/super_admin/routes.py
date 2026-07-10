@@ -46,6 +46,8 @@ from app.schemas.super_admin import (
     SuperAdminHostelListResponse,
 
     SuperAdminHostelRejectRequest,
+    SuperAdminHostelApproveRequest,
+    SuperAdminHostelRequestChangesRequest,
 
     SuperAdminAdminCreateRequest,
 
@@ -248,68 +250,28 @@ async def create_hostel(payload: SuperAdminHostelCreateRequest, _: SuperAdmin, d
 
 
 
-@router.patch("/hostels/{hostel_id}/approve", response_model=SuperAdminHostelResponse)
-
-async def approve_hostel(hostel_id: str, _: SuperAdmin, db: DBSession):
-
-    """**Approve a hostel** — sets status to `active`, making it publicly visible."""
-
-    return await SuperAdminService(db).update_hostel_status(hostel_id, HostelStatus.ACTIVE)
-
-
-
-
-
-@router.patch("/hostels/{hostel_id}/reject", response_model=SuperAdminHostelResponse)
-
-async def reject_hostel(hostel_id: str, _: SuperAdmin, db: DBSession):
-
-    """**Reject a hostel** — sets status to `rejected`. Hostel will not appear publicly."""
-
-    return await SuperAdminService(db).update_hostel_status(hostel_id, HostelStatus.REJECTED)
-
-
-
-
-
 @router.post("/hostels/{hostel_id}/approve", response_model=SuperAdminHostelResponse)
-
-async def approve_hostel_post(hostel_id: str, _: SuperAdmin, db: DBSession):
-
-    return await SuperAdminService(db).update_hostel_status(hostel_id, HostelStatus.ACTIVE)
-
-
-
+async def approve_hostel(hostel_id: str, current_user: SuperAdmin, db: DBSession, payload: SuperAdminHostelApproveRequest | None = None):
+    """**Approve a hostel** — sets status to `active`, making it publicly visible, and emails the owner."""
+    note = payload.note if payload else None
+    return await SuperAdminService(db).approve_hostel(hostel_id=hostel_id, approved_by=current_user.id, note=note)
 
 
 @router.post("/hostels/{hostel_id}/reject", response_model=SuperAdminHostelResponse)
-
-async def reject_hostel_post(hostel_id: str, payload: SuperAdminHostelRejectRequest, _: SuperAdmin, db: DBSession):
-
-    _ = payload.reason  # reason accepted for contract; model currently has no rejection_reason field.
-
-    return await SuperAdminService(db).update_hostel_status(hostel_id, HostelStatus.REJECTED)
+async def reject_hostel(hostel_id: str, payload: SuperAdminHostelRejectRequest, current_user: SuperAdmin, db: DBSession):
+    """**Reject a hostel** — sets status to `rejected`. Hostel will not appear publicly, and owner is notified."""
+    return await SuperAdminService(db).reject_hostel(hostel_id=hostel_id, rejected_by=current_user.id, reason=payload.reason)
 
 
-
+@router.post("/hostels/{hostel_id}/request-changes", response_model=SuperAdminHostelResponse)
+async def request_hostel_changes(hostel_id: str, payload: SuperAdminHostelRequestChangesRequest, current_user: SuperAdmin, db: DBSession):
+    """**Request changes** — sets status to `changes_requested`. Owner is notified."""
+    return await SuperAdminService(db).request_hostel_changes(hostel_id=hostel_id, requested_by=current_user.id, reason=payload.reason)
 
 
 @router.post("/hostels/{hostel_id}/suspend", response_model=SuperAdminHostelResponse)
-
-async def suspend_hostel_post(hostel_id: str, _: SuperAdmin, db: DBSession):
-
-    return await SuperAdminService(db).update_hostel_status(hostel_id, HostelStatus.SUSPENDED)
-
-
-
-
-
-@router.patch("/hostels/{hostel_id}/suspend", response_model=SuperAdminHostelResponse)
-
 async def suspend_hostel(hostel_id: str, _: SuperAdmin, db: DBSession):
-
     """**Suspend a hostel** — temporarily removes it from public listing."""
-
     return await SuperAdminService(db).update_hostel_status(hostel_id, HostelStatus.SUSPENDED)
 
 
