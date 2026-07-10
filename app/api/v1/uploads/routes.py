@@ -1,41 +1,65 @@
 """
 app/api/v1/uploads/routes.py
 
-Centralized file upload endpoints that are fully testable in Swagger UI.
-Uses FastAPI's UploadFile for proper multipart/form-data support.
-All uploads go directly to Cloudinary.
+Centralized file upload endpoints — fully Swagger-testable with "Choose File" button.
+Uses FastAPI UploadFile (multipart/form-data). All files go directly to Cloudinary.
 """
+import uuid
 from typing import Annotated
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from starlette.responses import Response
+
 from app.dependencies import DBSession, CurrentUser, require_roles
 from app.integrations.cloudinary_client import get_cloudinary_client
 
 router = APIRouter()
 
-AnyAuthUser = Annotated[
-    CurrentUser,
-    Depends(require_roles("visitor", "student", "hostel_admin", "supervisor", "super_admin")),
-]
-AdminUser = Annotated[CurrentUser, Depends(require_roles("hostel_admin", "super_admin"))]
-StudentUser = Annotated[CurrentUser, Depends(require_roles("student"))]
-VisitorUser = Annotated[CurrentUser, Depends(require_roles("visitor"))]
+# ── Role aliases ────────────────────────────────────────────────────────────
+AnyAuthUser    = Annotated[CurrentUser, Depends(require_roles("visitor", "student", "hostel_admin", "supervisor", "super_admin"))]
+AdminUser      = Annotated[CurrentUser, Depends(require_roles("hostel_admin", "super_admin"))]
+StudentUser    = Annotated[CurrentUser, Depends(require_roles("student"))]
+VisitorUser    = Annotated[CurrentUser, Depends(require_roles("visitor"))]
 SupervisorUser = Annotated[CurrentUser, Depends(require_roles("supervisor", "hostel_admin", "super_admin"))]
 
+# ── Allowed MIME types ───────────────────────────────────────────────────────
 _IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
 _DOC_TYPES   = {"image/jpeg", "image/png", "image/webp", "application/pdf"}
 _MAX_IMG_MB  = 5
 _MAX_DOC_MB  = 10
 
+
 def _validate(content: bytes, ct: str, allowed: set, max_mb: int, label: str) -> None:
+    """Raise HTTPException 400 for bad file type or oversized file."""
     if len(content) > max_mb * 1024 * 1024:
         raise HTTPException(400, f"{label} exceeds {max_mb} MB limit.")
     if ct.lower() not in allowed:
-        raise HTTPException(400, f"Unsupported file type '{ct}'. Allowed: {', '.join(sorted(allowed))}.")
+        raise HTTPException(
+            400,
+            f"Unsupported file type '{ct}'. Allowed: {', '.join(sorted(allowed))}."
+        )
 
 
-# ─────────────────────────────────────────────────────────────
-# 1. PROFILE PICTURE  (all authenticated users)
-# ─────────────────────────────────────────────────────────────
+def _unique_name(user_id: str, filename: str | None, folder: str) -> str:
+    """Build a collision-free Cloudinary path using a UUID prefix."""
+    safe_name = filename or "file"
+    return f"{folder}/{user_id}/{uuid.uuid4().hex}_{safe_name}"
+
+
+async def _cloudinary_upload(file_name: str, content: bytes, ct: str) -> str:
+    """Upload to Cloudinary, converting RuntimeError → HTTP 500."""
+    try:
+        return await get_cloudinary_client().upload(
+            file_name=file_name,
+            content=content,
+            content_type=ct,
+        )
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+# ════════════════════════════════════════════════════════════════
+# 1. PROFILE PICTURE  — all authenticated users
+# ════════════════════════════════════════════════════════════════
 
 @router.post(
     "/profile-picture",
@@ -52,30 +76,30 @@ async def upload_profile_picture(
 
     - Accepted types: **JPEG, PNG, WebP**
     - Max size: **5 MB**
-    - The returned `url` should be stored as `profile_picture_url` via the profile update endpoint.
+    - The image is uploaded to Cloudinary and `profile_picture_url` is automatically
+      updated in the users table — no separate PATCH needed.
     """
     content = await file.read()
     ct = (file.content_type or "").lower()
     _validate(content, ct, _IMAGE_TYPES, _MAX_IMG_MB, "Profile picture")
 
-    url = await get_cloudinary_client().upload(
-        file_name=f"profile/{current_user.id}/{file.filename}",
-        content=content,
-        content_type=ct,
-    )
-    # Auto-update user profile_picture_url
-    from sqlalchemy import select, update as sa_update
+    path = _unique_name(current_user.id, file.filename, "profile")
+    url  = await _cloudinary_upload(path, content, ct)
+
+    from sqlalchemy import update as sa_update
     from app.models.user import User
     await db.execute(
-        sa_update(User).where(User.id == current_user.id).values(profile_picture_url=url)
+        sa_update(User)
+        .where(User.id == current_user.id)
+        .values(profile_picture_url=url)
     )
     await db.commit()
     return {"url": url, "filename": file.filename, "status": "success"}
 
 
-# ─────────────────────────────────────────────────────────────
-# 2. ID DOCUMENT  (visitor / student)
-# ─────────────────────────────────────────────────────────────
+# ════════════════════════════════════════════════════════════════
+# 2. ID DOCUMENT  — visitor / student / any auth user
+# ════════════════════════════════════════════════════════════════
 
 @router.post(
     "/id-document",
@@ -87,27 +111,25 @@ async def upload_id_document(
     file: UploadFile = File(..., description="ID proof — JPEG / PNG / WebP / PDF (max 10 MB)"),
 ):
     """
-    Upload an ID document (Aadhaar, Passport, etc.) for the visitor.
+    Upload an ID document (Aadhaar, Passport, Driving Licence, etc.).
 
     - Accepted types: **JPEG, PNG, WebP, PDF**
     - Max size: **10 MB**
-    - Returns `url` — pass this as `id_document_url` in the booking applicant patch request.
+    - Returns `url` — store it via `PATCH /api/v1/bookings/{booking_id}/applicant`
+      or wherever the frontend needs the ID document URL.
     """
     content = await file.read()
     ct = (file.content_type or "").lower()
     _validate(content, ct, _DOC_TYPES, _MAX_DOC_MB, "ID document")
 
-    url = await get_cloudinary_client().upload(
-        file_name=f"id-docs/{current_user.id}/{file.filename}",
-        content=content,
-        content_type=ct,
-    )
+    path = _unique_name(current_user.id, file.filename, "id-docs")
+    url  = await _cloudinary_upload(path, content, ct)
     return {"url": url, "filename": file.filename, "content_type": ct, "status": "success"}
 
 
-# ─────────────────────────────────────────────────────────────
-# 3. COMPLAINT ATTACHMENT  (student)
-# ─────────────────────────────────────────────────────────────
+# ════════════════════════════════════════════════════════════════
+# 3. COMPLAINT ATTACHMENT  — any authenticated user
+# ════════════════════════════════════════════════════════════════
 
 @router.post(
     "/complaint-attachment",
@@ -119,27 +141,24 @@ async def upload_complaint_attachment(
     file: UploadFile = File(..., description="Complaint attachment — JPEG / PNG / WebP / PDF (max 10 MB)"),
 ):
     """
-    Upload an image or document to attach to a complaint.
+    Upload a photo or PDF to attach to a complaint.
 
     - Accepted types: **JPEG, PNG, WebP, PDF**
     - Max size: **10 MB**
-    - Returns `url` — pass this as `attachment_url` when creating a complaint.
+    - Returns `url` — pass it as `attachment_url` when creating the complaint.
     """
     content = await file.read()
     ct = (file.content_type or "").lower()
     _validate(content, ct, _DOC_TYPES, _MAX_DOC_MB, "Attachment")
 
-    url = await get_cloudinary_client().upload(
-        file_name=f"complaints/{current_user.id}/{file.filename}",
-        content=content,
-        content_type=ct,
-    )
+    path = _unique_name(current_user.id, file.filename, "complaints")
+    url  = await _cloudinary_upload(path, content, ct)
     return {"url": url, "filename": file.filename, "content_type": ct, "status": "success"}
 
 
-# ─────────────────────────────────────────────────────────────
-# 4. HOSTEL IMAGE  (hostel_admin / super_admin)
-# ─────────────────────────────────────────────────────────────
+# ════════════════════════════════════════════════════════════════
+# 4. HOSTEL IMAGE  — hostel_admin / super_admin
+# ════════════════════════════════════════════════════════════════
 
 @router.post(
     "/hostel-image/{hostel_id}",
@@ -152,45 +171,44 @@ async def upload_hostel_image(
     current_user: AdminUser,
     db: DBSession,
     file: UploadFile = File(..., description="Hostel image — JPEG / PNG / WebP (max 5 MB)"),
-    caption: str = Form(None, description="Optional caption for this image"),
-    image_type: str = Form("gallery", description="Image type: 'gallery', 'exterior', 'interior', 'room', 'amenity'"),
-    is_primary: bool = Form(False, description="Set as the primary/cover image"),
+    caption:    str  = Form(None,    description="Optional caption for this image"),
+    image_type: str  = Form("gallery", description="gallery | exterior | interior | room | amenity"),
+    is_primary: bool = Form(False,   description="Set as the primary/cover image"),
 ):
     """
-    Upload an image for a specific hostel.
+    Upload an image for a hostel and save the record to the database.
 
     - Accepted types: **JPEG, PNG, WebP**
     - Max size: **5 MB**
-    - The image is stored in the `hostel_images` table and returned in hostel detail responses.
+    - The image is stored in Cloudinary and the URL is saved to `hostel_images` table.
     """
     from app.models.hostel import HostelImage
-    from sqlalchemy import select, func
+    from sqlalchemy import select, func, update as sa_update
 
     # Permission check
-    if hostel_id not in current_user.hostel_ids and current_user.role != "super_admin":
+    if (
+        hasattr(current_user, "hostel_ids")
+        and hostel_id not in current_user.hostel_ids
+        and current_user.role != "super_admin"
+    ):
         raise HTTPException(403, "Access denied to this hostel.")
 
     content = await file.read()
     ct = (file.content_type or "").lower()
     _validate(content, ct, _IMAGE_TYPES, _MAX_IMG_MB, "Hostel image")
 
-    url = await get_cloudinary_client().upload(
-        file_name=f"hostels/{hostel_id}/{file.filename}",
-        content=content,
-        content_type=ct,
-    )
+    path = _unique_name(hostel_id, file.filename, "hostels")
+    url  = await _cloudinary_upload(path, content, ct)
 
-    # Determine sort order
+    # Determine next sort order
     result = await db.execute(
-        select(func.coalesce(func.max(HostelImage.sort_order), -1)).where(
-            HostelImage.hostel_id == hostel_id
-        )
+        select(func.coalesce(func.max(HostelImage.sort_order), -1))
+        .where(HostelImage.hostel_id == hostel_id)
     )
     next_sort = (result.scalar() or -1) + 1
 
-    # If this is primary, unset any existing primary
+    # If setting as primary, clear any existing primary flag
     if is_primary:
-        from sqlalchemy import update as sa_update
         await db.execute(
             sa_update(HostelImage)
             .where(HostelImage.hostel_id == hostel_id)
@@ -200,7 +218,7 @@ async def upload_hostel_image(
     img = HostelImage(
         hostel_id=hostel_id,
         url=url,
-        thumbnail_url=url,       # Cloudinary auto-generates thumbnails on fetch
+        thumbnail_url=url,
         caption=caption,
         image_type=image_type,
         sort_order=next_sort,
@@ -211,16 +229,20 @@ async def upload_hostel_image(
     await db.refresh(img)
 
     return {
-        "id": img.id,
-        "url": img.url,
+        "id":            img.id,
+        "url":           img.url,
         "thumbnail_url": img.thumbnail_url,
-        "caption": img.caption,
-        "image_type": img.image_type,
-        "sort_order": img.sort_order,
-        "is_primary": img.is_primary,
-        "status": "success",
+        "caption":       img.caption,
+        "image_type":    img.image_type,
+        "sort_order":    img.sort_order,
+        "is_primary":    img.is_primary,
+        "status":        "success",
     }
 
+
+# ════════════════════════════════════════════════════════════════
+# 5. DELETE HOSTEL IMAGE
+# ════════════════════════════════════════════════════════════════
 
 @router.delete(
     "/hostel-image/{hostel_id}/{image_id}",
@@ -230,7 +252,7 @@ async def upload_hostel_image(
 )
 async def delete_hostel_image(
     hostel_id: str,
-    image_id: str,
+    image_id:  str,
     current_user: AdminUser,
     db: DBSession,
 ):
@@ -239,9 +261,12 @@ async def delete_hostel_image(
     """
     from app.models.hostel import HostelImage
     from sqlalchemy import select
-    from starlette.responses import Response
 
-    if hostel_id not in current_user.hostel_ids and current_user.role != "super_admin":
+    if (
+        hasattr(current_user, "hostel_ids")
+        and hostel_id not in current_user.hostel_ids
+        and current_user.role != "super_admin"
+    ):
         raise HTTPException(403, "Access denied to this hostel.")
 
     result = await db.execute(
@@ -254,9 +279,7 @@ async def delete_hostel_image(
     if not img:
         raise HTTPException(404, "Image not found.")
 
-    # Delete from Cloudinary
     await get_cloudinary_client().delete(img.url)
-
     await db.delete(img)
     await db.commit()
     return Response(status_code=204)
