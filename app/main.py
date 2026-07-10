@@ -1332,7 +1332,7 @@ async def root():
                         <div class="glass p-6 rounded-2xl md:col-span-2 space-y-4">
                           <h4 class="font-bold text-white text-lg">Backend Folder Architecture</h4>
                           <pre class="bg-black/40 p-4 rounded-xl border border-white/5 text-[11px] font-mono text-slate-300 leading-relaxed overflow-x-auto select-text">
-Hostel_final/
+{`Hostel_final/
 ├── alembic/              # Database migration version scripts
 ├── app/
 │   ├── api/
@@ -1344,7 +1344,7 @@ Hostel_final/
 │   ├── services/         # Core business logic flows
 │   └── main.py           # Application entrypoint (FastAPI bootstrap)
 ├── requirements.txt      # Python dependencies manifest
-└── alembic.ini           # Alembic migration configure file
+└── alembic.ini           # Alembic migration configure file`}
                           </pre>
                         </div>
 
