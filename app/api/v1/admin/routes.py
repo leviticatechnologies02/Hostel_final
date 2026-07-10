@@ -564,9 +564,7 @@ async def update_student(
             )
         user.phone = payload.phone
         updated_user_fields.append("phone")
-    if payload.profile_picture_url is not None:
-        user.profile_picture_url = payload.profile_picture_url
-        updated_user_fields.append("profile_picture_url")
+
     
     # Update students table fields
     updated_student_fields = []
@@ -1673,8 +1671,7 @@ async def update_admin_profile(
         user.phone = phone
     
     # Update profile picture
-    if "profile_picture_url" in body and body["profile_picture_url"] is not None:
-        user.profile_picture_url = body["profile_picture_url"]
+
     
     await db.commit()
     await db.refresh(user)

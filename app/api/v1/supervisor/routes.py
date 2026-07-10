@@ -661,8 +661,7 @@ async def update_supervisor_profile(
         user.phone = payload.phone
     
     # Update profile picture
-    if payload.profile_picture_url is not None:
-        user.profile_picture_url = payload.profile_picture_url
+
     
     await db.commit()
     await db.refresh(user)

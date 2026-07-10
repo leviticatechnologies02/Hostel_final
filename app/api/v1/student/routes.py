@@ -197,8 +197,7 @@ async def update_profile(
             )
         user.phone = phone
     
-    if "profile_picture_url" in body and body["profile_picture_url"] is not None:
-        user.profile_picture_url = body["profile_picture_url"]
+
     
     await db.commit()
     await db.refresh(user)

@@ -245,63 +245,6 @@ async def create_hostel(payload: SuperAdminHostelCreateRequest, _: SuperAdmin, d
 
 
 
-@router.post("/hostels/{hostel_id}/images", status_code=201)
-
-async def add_hostel_images(_: SuperAdmin, hostel_id: str, db: DBSession, payload: list[dict]):
-
-    """**Add images to a hostel.** Each item: {url, thumbnail_url?, caption?, is_primary?}"""
-
-    from app.models.hostel import HostelImage
-
-    from sqlalchemy import select
-
-    from app.models.hostel import Hostel
-
-    result = await db.execute(select(Hostel).where(Hostel.id == hostel_id))
-
-    hostel = result.scalar_one_or_none()
-
-    if hostel is None:
-
-        raise HTTPException(status_code=404, detail="Hostel not found.")
-
-    added = []
-
-    for i, img in enumerate(payload[:10]):
-
-        url = img.get("url", "").strip()
-
-        if not url:
-
-            continue
-
-        image = HostelImage(
-
-            hostel_id=hostel_id,
-
-            url=url,
-
-            thumbnail_url=img.get("thumbnail_url", url),
-
-            caption=img.get("caption"),
-
-            image_type=img.get("image_type", "gallery"),
-
-            sort_order=i,
-
-            is_primary=(i == 0 and img.get("is_primary", True)),
-
-        )
-
-        db.add(image)
-
-        added.append({"url": url, "sort_order": i})
-
-    await db.commit()
-
-    return {"hostel_id": hostel_id, "images_added": len(added)}
-
-
 
 
 
@@ -1177,8 +1120,7 @@ async def update_super_admin_profile(
         user.phone = payload.phone
     
     # Update profile picture
-    if payload.profile_picture_url is not None:
-        user.profile_picture_url = payload.profile_picture_url
+
     
     await db.commit()
     await db.refresh(user)

@@ -132,8 +132,7 @@ async def update_profile(payload: VisitorProfileUpdateRequest, current_user: Vis
         user.full_name = payload.full_name
     
     # Update profile picture (always safe)
-    if payload.profile_picture_url is not None:
-        user.profile_picture_url = payload.profile_picture_url
+
     
     # Handle phone update separately (most likely the source of 500)
     if payload.phone is not None:
