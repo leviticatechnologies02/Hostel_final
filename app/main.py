@@ -16,6 +16,15 @@ START_TIME = time.time()
 from app.dependencies import DBSession
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Simple in-memory cache for /api/v1/system/stats
+# Heavy SQL COUNT queries are cached for STATS_CACHE_TTL seconds.
+# All browser tabs share this cache, so the DB is only hit once per TTL
+# regardless of how many sessions are polling.
+# ─────────────────────────────────────────────────────────────────────────────
+STATS_CACHE_TTL = 60          # seconds — refresh DB stats at most once per minute
+_stats_cache: dict = {}       # {"data": {...}, "expires_at": float}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Swagger / OpenAPI description — rendered at http://localhost:8000/docs
 # ─────────────────────────────────────────────────────────────────────────────
 _DESCRIPTION = """
@@ -258,33 +267,54 @@ app.include_router(api_router, prefix=settings.api_prefix)
 
 @app.get("/api/v1/system/stats", include_in_schema=False)
 async def get_system_stats(db: DBSession):
-    from sqlalchemy import text
     import time
     import random
-    
-    # 1. Database stats — use exact PostgreSQL table names
+    from fastapi.responses import JSONResponse
+
+    now = time.time()
+
+    # ── Always update the lightweight/cheap fields (uptime, cpu sim, rps) ──
+    uptime_seconds = int(now - START_TIME)
+    cpu_usage      = round(10.0 + random.random() * 15.0, 1)
+    mem_usage      = round(35.0 + random.random() * 5.0,  1)
+
+    # ── Serve cached DB/service data if still fresh ──────────────────────────
+    cached = _stats_cache.get("data")
+    if cached and now < _stats_cache.get("expires_at", 0):
+        # Return cheap live fields merged with cached heavyweight fields
+        cached["uptime"]                     = uptime_seconds
+        cached["metrics"]["cpu"]             = cpu_usage
+        cached["metrics"]["memory"]          = mem_usage
+        cached["metrics"]["requests_per_second"] = round(0.5 + random.random() * 2.5, 2)
+        cached["metrics"]["requests_per_minute"] = int(50 + random.random() * 40)
+        cached["metrics"]["avg_response_time_ms"] = int(45 + random.random() * 30)
+        cached["cached"] = True
+        return JSONResponse(content=cached)
+
+    # ── Cache is stale — run the expensive queries ────────────────────────────
+    from sqlalchemy import text
+
     tables = [
         "users", "hostels", "rooms", "beds", "bookings",
         "complaints", "attendance_records", "mess_menus", "notices", "payments",
         "students", "reviews", "maintenance_requests",
     ]
-    db_stats = {}          # only row counts — no status strings
-    total_records = 0
-    db_connection = "healthy"
+    db_stats: dict = {}
+    total_records   = 0
+    db_connection   = "healthy"
     try:
         for t in tables:
             try:
-                res = await db.execute(text(f"SELECT COUNT(*) FROM {t}"))
+                res   = await db.execute(text(f"SELECT COUNT(*) FROM {t}"))
                 count = res.scalar() or 0
-                db_stats[t] = count
+                db_stats[t]    = count
                 total_records += count
             except Exception:
-                # Table may not exist yet — skip gracefully
-                pass
+                pass   # table might not exist yet — skip
     except Exception as e:
         db_connection = f"error: {str(e)}"
-        
-    # 2. Redis status
+
+    # Redis check
     redis_status = "offline"
     try:
         from app.core.redis import get_redis
@@ -294,54 +324,56 @@ async def get_system_stats(db: DBSession):
                 await redis_client.ping()
             redis_status = "online"
     except Exception:
-        if settings.redis_url:
-            redis_status = "online"
-            
-    # 3. Third-party integrations
+        redis_status = "online" if settings.redis_url else "offline"
+
+    # Third-party checks (just env-var presence — no outbound HTTP call)
     cloudinary_status = "online" if settings.cloudinary_cloud_name else "offline"
-    razorpay_status = "online" if settings.razorpay_key_id else "offline"
-    email_status = "online" if settings.smtp_host else "offline"
-    
-    # 4. System Uptime & Resources
-    uptime_seconds = int(time.time() - START_TIME)
-    cpu_usage = round(10.0 + random.random() * 15.0, 1)
-    mem_usage = round(35.0 + random.random() * 5.0, 1)
-    
-    return {
-        "project": "StayEase",
-        "version": "1.0.0",
-        "build": "2026.07.10.01",
+    razorpay_status   = "online" if settings.razorpay_key_id        else "offline"
+    email_status      = "online" if settings.smtp_host               else "offline"
+
+    payload = {
+        "project":     "StayEase",
+        "version":     "1.0.0",
+        "build":       "2026.07.10.01",
         "environment": "production" if not settings.debug else "development",
-        "uptime": uptime_seconds,
+        "uptime":      uptime_seconds,
+        "cached":      False,
+        "cache_ttl":   STATS_CACHE_TTL,
         "metrics": {
-            "cpu": cpu_usage,
-            "memory": mem_usage,
-            "requests_per_second": round(0.5 + random.random() * 2.5, 2),
-            "requests_per_minute": int(50 + random.random() * 40),
-            "success_rate": 99.8,
-            "error_rate": 0.2,
-            "avg_response_time_ms": int(45 + random.random() * 30),
-            "active_users": db_stats.get("users", 0) + int(random.random() * 5),
-            "background_jobs": int(random.random() * 3)
+            "cpu":                   cpu_usage,
+            "memory":                mem_usage,
+            "requests_per_second":   round(0.5 + random.random() * 2.5, 2),
+            "requests_per_minute":   int(50 + random.random() * 40),
+            "success_rate":          99.8,
+            "error_rate":            0.2,
+            "avg_response_time_ms":  int(45 + random.random() * 30),
+            "active_users":          db_stats.get("users", 0),
+            "background_jobs":       int(random.random() * 3),
         },
         "database": {
-            "tables": len(tables),
-            "size_mb": round(15.4 + (total_records * 0.002), 2),
+            "tables":        len(tables),
+            "size_mb":       round(15.4 + (total_records * 0.002), 2),
             "total_records": total_records,
-            "connection": db_connection,     # separate field — not mixed in stats
-            "stats": db_stats                # pure dict of table_name -> row count
+            "connection":    db_connection,
+            "stats":         db_stats,
         },
         "services": {
-            "postgresql": "online" if db_connection == "healthy" else "offline",
-            "redis": redis_status,
-            "cloudinary": cloudinary_status,
-            "razorpay": razorpay_status,
-            "email": email_status,
-            "jwt": "online",
+            "postgresql":       "online" if db_connection == "healthy" else "offline",
+            "redis":            redis_status,
+            "cloudinary":       cloudinary_status,
+            "razorpay":         razorpay_status,
+            "email":            email_status,
+            "jwt":              "online",
             "background_workers": "online",
-            "scheduler": "online"
-        }
+            "scheduler":        "online",
+        },
     }
+
+    # ── Store in cache ────────────────────────────────────────────────────────
+    _stats_cache["data"]       = payload.copy()
+    _stats_cache["expires_at"] = now + STATS_CACHE_TTL
+
+    return JSONResponse(content=payload)
 
 
 @app.get("/", include_in_schema=False)
@@ -609,7 +641,7 @@ async def root():
       const [activeTab, setActiveTab] = useState("dashboard");
       const [stats, setStats] = useState(null);
       const [openapi, setOpenapi] = useState(null);
-      const [refreshInterval, setRefreshInterval] = useState(3000);
+      const [refreshInterval, setRefreshInterval] = useState(15000);
       const [logs, setLogs] = useState([]);
       const [metricsHistory, setMetricsHistory] = useState({ cpu: [], memory: [], rps: [] });
       const [activities, setActivities] = useState([]);
@@ -825,10 +857,10 @@ async def root():
                     onChange={e => setRefreshInterval(Number(e.target.value))}
                     class="bg-transparent text-xs font-semibold text-slate-200 border-none outline-none cursor-pointer"
                   >
-                    <option value={1000} class="bg-[#0e0e1a]">1s (Fast)</option>
-                    <option value={3000} class="bg-[#0e0e1a]">3s (Realtime)</option>
-                    <option value={5000} class="bg-[#0e0e1a]">5s (Normal)</option>
-                    <option value={10000} class="bg-[#0e0e1a]">10s (Eco)</option>
+                    <option value={5000} class="bg-[#0e0e1a]">5s (Fast)</option>
+                    <option value={15000} class="bg-[#0e0e1a]">15s (Normal)</option>
+                    <option value={30000} class="bg-[#0e0e1a]">30s (Eco)</option>
+                    <option value={60000} class="bg-[#0e0e1a]">60s (Slow)</option>
                   </select>
                 </div>
                 
