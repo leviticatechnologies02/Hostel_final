@@ -43,10 +43,10 @@ All accounts use password: **`Test@1234`**
 | Role | Email | Access |
 |------|-------|--------|
 | 🛡️ Super Admin | `superadmin@stayease.com` | Full platform control |
-| 🏢 Hostel Admin 1 | `admin1@stayease.com` | Hyderabad + Bangalore hostels |
-| 🏢 Hostel Admin 2 | `admin2@stayease.com` | Pune + Mumbai hostels |
-| 👷 Supervisor 1 | `supervisor1@stayease.com` | Green Valley Boys Hostel |
-| 👷 Supervisor 2 | `supervisor2@stayease.com` | Pearl Girls Hostel |
+| 🏢 Hostel Admin 1 | `admin1@stayease.com` | Hyderabad + Pune hostels |
+| 🏢 Hostel Admin 2 | `admin2@stayease.com` | Bangalore + Mumbai hostels |
+| 👷 Supervisor 1 | `supervisor1@stayease.com` | Green Valley Boys Hostel (Hyderabad) |
+| 👷 Supervisor 2 | `supervisor2@stayease.com` | Pearl Girls Hostel (Bangalore) |
 | 🧑‍🎓 Student (Hemant) | `hemant.pawade.lev044@levitica.in` | Student self-service |
 | 🙋 Visitor | `arun.kapoor@gmail.com` | Public booking flow |
 
