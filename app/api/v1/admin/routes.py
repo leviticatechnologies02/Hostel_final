@@ -224,8 +224,46 @@ async def update_hostel(hostel_id: str, payload: HostelUpdateRequest, db: DBSess
 
 @router.get("/hostels/{hostel_id}/bookings", response_model=list[BookingResponse])
 async def list_bookings(hostel_id: str, db: DBSession, current_user: AdminUser):
+    """
+    **List all bookings for a hostel.**
+    Each booking includes `id_document_url` and `id_type` for the Documents column.
+    """
     _check_hostel(current_user, hostel_id)
     return await BookingService(db).list_admin_bookings(hostel_id=hostel_id)
+
+
+@router.get("/bookings/{booking_id}/document")
+async def get_booking_document(
+    booking_id: str,
+    db: DBSession,
+    current_user: AdminUser,
+):
+    """
+    **Get document details for a booking (view only).**
+
+    Returns the uploaded ID document URL and type for a specific booking.
+    Used by the Documents column in the Bookings listing page.
+
+    - `id_document_url`: Direct Cloudinary URL — open in browser or iframe to view.
+    - `id_type`: The type of document (e.g. Aadhaar, Passport, Driving Licence).
+    - `has_document`: Convenience boolean — `false` means no document was uploaded yet.
+    """
+    booking_hostel_id = await _resolve_booking_hostel_id(db, booking_id)
+    _check_hostel(current_user, booking_hostel_id)
+
+    result = await db.execute(select(Booking).where(Booking.id == booking_id))
+    booking = result.scalar_one_or_none()
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found.")
+
+    return {
+        "booking_id":      booking_id,
+        "booking_number":  booking.booking_number,
+        "full_name":       booking.full_name,
+        "id_type":         booking.id_type,
+        "id_document_url": booking.id_document_url,
+        "has_document":    bool(booking.id_document_url),
+    }
 
 
 @router.get("/hostels/{hostel_id}/rooms", response_model=list[RoomResponse])

@@ -157,7 +157,77 @@ async def upload_complaint_attachment(
 
 
 # ════════════════════════════════════════════════════════════════
-# 4. HOSTEL IMAGE  — hostel_admin / super_admin
+# 4. BOOKING ID DOCUMENT  — visitor uploads doc linked to booking
+# ════════════════════════════════════════════════════════════════
+
+@router.post(
+    "/booking-document/{booking_id}",
+    summary="Upload booking ID document",
+    tags=["Uploads"],
+)
+async def upload_booking_document(
+    booking_id: str,
+    current_user: AnyAuthUser,
+    db: DBSession,
+    file: UploadFile = File(..., description="ID document — JPEG / PNG / WebP / PDF (max 10 MB)"),
+    id_type: str = Form(None, description="Document type: 'Aadhaar', 'Passport', 'Driving Licence', 'Voter ID', 'PAN Card', etc."),
+):
+    """
+    **Upload an ID document for a specific booking.**
+
+    - Uploads the file to Cloudinary and saves the URL directly to the booking record.
+    - After upload, the **Documents column** in the admin Bookings page will show a view link.
+    - Accepted types: **JPEG, PNG, WebP, PDF**
+    - Max size: **10 MB**
+
+    **Flow:**
+    1. Visitor uploads their Aadhaar / Passport using this endpoint.
+    2. Admin sees a 📄 icon in the Documents column of the Bookings page.
+    3. Admin clicks → `GET /api/v1/admin/bookings/{booking_id}/document` → views the doc.
+    """
+    from sqlalchemy import select, update as sa_update
+    from app.models.booking import Booking
+
+    # Verify booking exists
+    result = await db.execute(select(Booking).where(Booking.id == booking_id))
+    booking = result.scalar_one_or_none()
+    if not booking:
+        raise HTTPException(404, "Booking not found.")
+
+    # Only the booking owner or admin can upload
+    is_admin = current_user.role in ("hostel_admin", "super_admin", "supervisor")
+    is_owner = str(booking.visitor_id) == str(current_user.id)
+    if not is_admin and not is_owner:
+        raise HTTPException(403, "You can only upload documents for your own booking.")
+
+    content = await file.read()
+    ct = (file.content_type or "").lower()
+    _validate(content, ct, _DOC_TYPES, _MAX_DOC_MB, "ID document")
+
+    path = _unique_name(booking_id, file.filename, "booking-docs")
+    url  = await _cloudinary_upload(path, content, ct)
+
+    # Save URL and id_type directly to the booking record
+    await db.execute(
+        sa_update(Booking)
+        .where(Booking.id == booking_id)
+        .values(id_document_url=url, id_type=id_type)
+    )
+    await db.commit()
+
+    return {
+        "booking_id":      booking_id,
+        "booking_number":  booking.booking_number,
+        "id_type":         id_type,
+        "id_document_url": url,
+        "filename":        file.filename,
+        "has_document":    True,
+        "status":          "success",
+    }
+
+
+# ════════════════════════════════════════════════════════════════
+# 5. HOSTEL IMAGE  — hostel_admin / super_admin
 # ════════════════════════════════════════════════════════════════
 
 @router.post(
@@ -241,7 +311,7 @@ async def upload_hostel_image(
 
 
 # ════════════════════════════════════════════════════════════════
-# 5. DELETE HOSTEL IMAGE
+# 6. DELETE HOSTEL IMAGE
 # ════════════════════════════════════════════════════════════════
 
 @router.delete(

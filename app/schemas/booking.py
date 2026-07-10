@@ -78,6 +78,7 @@ class BookingResponse(TimestampedResponse):
     booking_advance: float
     grand_total: float
     full_name: str
+    id_type: str | None = None
     id_document_url: str | None = None
     rejection_reason: str | None = None
     cancellation_reason: str | None = None
