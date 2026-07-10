@@ -262,22 +262,27 @@ async def get_system_stats(db: DBSession):
     import time
     import random
     
-    # 1. Database stats
+    # 1. Database stats — use exact PostgreSQL table names
     tables = [
-        "users", "hostels", "rooms", "beds", "bookings", 
-        "complaints", "attendance", "mess_menu", "notices", "payments"
+        "users", "hostels", "rooms", "beds", "bookings",
+        "complaints", "attendance_records", "mess_menus", "notices", "payments",
+        "students", "reviews", "maintenance_requests",
     ]
-    db_stats = {}
+    db_stats = {}          # only row counts — no status strings
     total_records = 0
+    db_connection = "healthy"
     try:
         for t in tables:
-            res = await db.execute(text(f"SELECT COUNT(*) FROM {t}"))
-            count = res.scalar() or 0
-            db_stats[t] = count
-            total_records += count
-        db_stats["connection"] = "healthy"
+            try:
+                res = await db.execute(text(f"SELECT COUNT(*) FROM {t}"))
+                count = res.scalar() or 0
+                db_stats[t] = count
+                total_records += count
+            except Exception:
+                # Table may not exist yet — skip gracefully
+                pass
     except Exception as e:
-        db_stats["connection"] = f"error: {str(e)}"
+        db_connection = f"error: {str(e)}"
         
     # 2. Redis status
     redis_status = "offline"
@@ -323,10 +328,11 @@ async def get_system_stats(db: DBSession):
             "tables": len(tables),
             "size_mb": round(15.4 + (total_records * 0.002), 2),
             "total_records": total_records,
-            "stats": db_stats
+            "connection": db_connection,     # separate field — not mixed in stats
+            "stats": db_stats                # pure dict of table_name -> row count
         },
         "services": {
-            "postgresql": "online" if db_stats.get("connection") == "healthy" else "offline",
+            "postgresql": "online" if db_connection == "healthy" else "offline",
             "redis": redis_status,
             "cloudinary": cloudinary_status,
             "razorpay": razorpay_status,
@@ -1233,18 +1239,21 @@ async def root():
                       <div class="glass p-6 rounded-2xl">
                         <h4 class="font-bold text-white text-lg mb-4">Table Row Distribution</h4>
                         <div class="space-y-3">
-                          {Object.entries(stats.database.stats).map(([table, count]) => {
-                            const percent = Math.min((count / Math.max(...Object.values(stats.database.stats), 1)) * 100, 100);
-                            return (
-                              <div key={table} class="flex items-center gap-4">
-                                <span class="w-32 font-mono text-xs text-slate-400">{table}</span>
-                                <div class="flex-1 bg-white/5 h-4 rounded-md overflow-hidden relative">
-                                  <div class="bg-gradient-to-r from-orange-600 to-amber-500 h-full rounded-md" style={{ width: `${percent}%` }}></div>
-                                  <span class="absolute inset-y-0 right-3 flex items-center text-[10px] font-mono text-slate-300 font-bold">{count} rows</span>
+                          {Object.entries(stats.database.stats)
+                            .filter(([, count]) => typeof count === 'number')
+                            .map(([table, count]) => {
+                              const numericCounts = Object.values(stats.database.stats).filter(v => typeof v === 'number');
+                              const percent = Math.min((count / Math.max(...numericCounts, 1)) * 100, 100);
+                              return (
+                                <div key={table} class="flex items-center gap-4">
+                                  <span class="w-40 font-mono text-xs text-slate-400 truncate">{table}</span>
+                                  <div class="flex-1 bg-white/5 h-4 rounded-md overflow-hidden relative">
+                                    <div class="bg-gradient-to-r from-orange-600 to-amber-500 h-full rounded-md" style={{ width: `${percent}%` }}></div>
+                                    <span class="absolute inset-y-0 right-3 flex items-center text-[10px] font-mono text-slate-300 font-bold">{count} rows</span>
+                                  </div>
                                 </div>
-                              </div>
-                            );
-                          })}
+                              );
+                            })}
                         </div>
                       </div>
                     </div>
