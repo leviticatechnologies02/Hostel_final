@@ -98,7 +98,7 @@ async def upload_profile_picture(
 
 
 # ════════════════════════════════════════════════════════════════
-# 2. HOSTEL REGISTRATION DOCUMENT — any authenticated user
+# 2. HOSTEL REGISTRATION DOCUMENT — public (no auth required)
 # ════════════════════════════════════════════════════════════════
 
 @router.post(
@@ -107,7 +107,6 @@ async def upload_profile_picture(
     tags=["Uploads"],
 )
 async def upload_hostel_registration_document(
-    current_user: AnyAuthUser,
     file: UploadFile = File(..., description="Business registration doc — JPEG / PNG / PDF (max 10 MB)"),
 ):
     """
@@ -116,12 +115,14 @@ async def upload_hostel_registration_document(
     - Accepted types: **JPEG, PNG, WebP, PDF**
     - Max size: **10 MB**
     - Returns a `url` which you should pass as `document_url` when calling `POST /api/v1/public/hostels/register`.
+    - This endpoint is fully public (no auth required).
     """
     content = await file.read()
     ct = (file.content_type or "").lower()
     _validate(content, ct, _DOC_TYPES, _MAX_DOC_MB, "Registration document")
 
-    path = _unique_name(current_user.id, file.filename, "registration-docs")
+    # Use a generic public prefix since the user isn't logged in
+    path = _unique_name("public_registration", file.filename, "registration-docs")
     url  = await _cloudinary_upload(path, content, ct)
 
     return {"url": url, "filename": file.filename, "status": "success"}

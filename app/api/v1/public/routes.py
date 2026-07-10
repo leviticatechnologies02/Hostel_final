@@ -391,18 +391,18 @@ async def create_contact_lead(payload: ContactLeadCreate, db: DBSession):
 async def register_hostel(
     payload: HostelRegistrationRequest,
     db: DBSession,
-    current_user: VisitorUser,
 ):
     """
     **Register a new hostel.**
     Submits a hostel application for review by super admins.
     The hostel is created with `pending_approval` status and is not public until approved.
+    This endpoint is fully public and does not require authentication.
     """
     from app.services.super_admin_service import SuperAdminService
     from app.schemas.super_admin import SuperAdminHostelResponse
     
     # We use SuperAdminService.register_hostel internally
-    hostel = await SuperAdminService(db).register_hostel(payload=payload, owner_id=current_user.id)
+    hostel = await SuperAdminService(db).register_hostel(payload=payload, owner_id=None)
     # Convert and return using the response schema from SuperAdmin module 
     # to show all status flags (is_active, is_verified, etc.)
     return SuperAdminHostelResponse.model_validate(hostel, from_attributes=True)
