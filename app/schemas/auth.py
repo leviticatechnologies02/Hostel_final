@@ -24,6 +24,17 @@ class LoginRequest(BaseModel):
     def strip_whitespace(cls, v: str) -> str:
         return v.strip() if isinstance(v, str) else v
 
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "email_or_phone": "superadmin@stayease.com",
+                    "password": "Test@1234"
+                }
+            ]
+        }
+    }
+
 
 class TokenResponse(BaseModel):
     user_id: str
