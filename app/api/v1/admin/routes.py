@@ -80,7 +80,6 @@ class AdminProfileUpdateRequest(BaseModel):
     """Request to update admin profile"""
     full_name: str | None = Field(default=None, min_length=2, max_length=255)
     phone: str | None = Field(default=None, min_length=8, max_length=30)
-    profile_picture_url: str | None = None
 
 class AdminChangePasswordRequest(BaseModel):
     """Request to change admin password"""

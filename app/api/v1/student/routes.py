@@ -38,7 +38,6 @@ from app.repositories.user_repository import UserRepository
 class StudentProfileUpdateRequest(PydanticBaseModel):
     full_name: str | None = None
     phone: str | None = None
-    profile_picture_url: str | None = None
 
 
 class LeaveRequestCreate(PydanticBaseModel):

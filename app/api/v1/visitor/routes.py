@@ -67,7 +67,6 @@ class VisitorChangePasswordRequest(BaseModel):
 class VisitorProfileUpdateRequest(BaseModel):
     full_name: str | None = Field(default=None, min_length=2, max_length=255)
     phone: str | None = Field(default=None, min_length=10, max_length=15)  
-    profile_picture_url: str | None = None
 
 
 class ReviewCreateRequest(BaseModel):
