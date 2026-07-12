@@ -269,7 +269,7 @@ app = FastAPI(
         "name": "MIT",
     },
     debug=settings.debug,
-    docs_url=None,                         # custom /docs route registered below with CSS injection
+    docs_url="/docs",
     redoc_url="/redoc",
     swagger_ui_parameters={
         "defaultModelsExpandDepth": -1,       # collapse schemas by default — cleaner view
@@ -494,66 +494,7 @@ async def purge_system_stats_cache():
 
 
 
-@app.get("/docs", include_in_schema=False)
-async def custom_swagger_ui_html():
-    from fastapi.openapi.docs import get_swagger_ui_html
-    from fastapi.responses import HTMLResponse
 
-    # Hardcode swagger params — avoids AttributeError when docs_url=None
-    swagger_params = {
-        "defaultModelsExpandDepth": -1,
-        "docExpansion": "none",
-        "filter": True,
-        "tryItOutEnabled": True,
-        "persistAuthorization": True,
-        "displayRequestDuration": True,
-        "syntaxHighlight.theme": "monokai",
-    }
-
-    html_res = get_swagger_ui_html(
-        openapi_url="/openapi.json",
-        title="StayEase API — Interactive Console",
-        oauth2_redirect_url="/docs/oauth2-redirect",
-        swagger_ui_parameters=swagger_params,
-    )
-
-    # Inject CSS to turn the plain /openapi.json text link into a styled orange pill badge
-    custom_style = """
-    <style>
-        .swagger-ui .info .link {
-            display: inline-flex !important;
-            align-items: center;
-            gap: 6px;
-            background: rgba(249, 115, 22, 0.08) !important;
-            color: #f97316 !important;
-            border: 1px dashed rgba(249, 115, 22, 0.3) !important;
-            padding: 5px 12px !important;
-            border-radius: 20px !important;
-            text-decoration: none !important;
-            font-weight: 700 !important;
-            font-size: 11px !important;
-            font-family: 'JetBrains Mono', monospace !important;
-            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
-            margin-top: 6px !important;
-            letter-spacing: 0.02em !important;
-        }
-        .swagger-ui .info .link:hover {
-            background: rgba(249, 115, 22, 0.18) !important;
-            border-color: rgba(249, 115, 22, 0.55) !important;
-            border-style: solid !important;
-            transform: translateY(-1px) !important;
-            box-shadow: 0 4px 12px rgba(249, 115, 22, 0.18) !important;
-        }
-        .swagger-ui .info .link::before {
-            content: "\1F517 " !important;
-            font-size: 10px !important;
-        }
-    </style>
-    """
-
-    body_str = html_res.body.decode("utf-8")
-    modified_body = body_str.replace("</head>", f"{custom_style}</head>")
-    return HTMLResponse(content=modified_body, headers=dict(html_res.headers))
 
 
 @app.get("/", include_in_schema=False)
