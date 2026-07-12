@@ -287,7 +287,7 @@ app.include_router(api_router, prefix=settings.api_prefix)
 
 
 @app.get("/api/v1/system/stats", include_in_schema=False)
-async def get_system_stats(db: DBSession):
+async def get_system_stats(db: DBSession, force: bool = False):
     import time
     import random
     from fastapi.responses import JSONResponse
@@ -301,7 +301,7 @@ async def get_system_stats(db: DBSession):
 
     # ── Serve cached DB/service data if still fresh ──────────────────────────
     cached = _stats_cache.get("data")
-    if cached and now < _stats_cache.get("expires_at", 0):
+    if not force and cached and now < _stats_cache.get("expires_at", 0):
         # Return cheap live fields merged with cached heavyweight fields
         cached["uptime"]                     = uptime_seconds
         cached["metrics"]["cpu"]             = cpu_usage
@@ -352,6 +352,95 @@ async def get_system_stats(db: DBSession):
     razorpay_status   = "online" if settings.razorpay_key_id        else "offline"
     email_status      = "online" if settings.smtp_host               else "offline"
 
+    # ── Fetch real activities ──────────────────────────────────────────────────
+    activities = []
+    try:
+        # 1. Fetch recent bookings
+        bookings_res = await db.execute(text(
+            "SELECT b.booking_number, b.full_name, b.created_at, h.name "
+            "FROM bookings b JOIN hostels h ON b.hostel_id = h.id "
+            "ORDER BY b.created_at DESC LIMIT 3"
+        ))
+        for row in bookings_res:
+            created_at = row[2]
+            time_str = created_at.strftime("%H:%M:%S") if created_at else "Just now"
+            activities.append({
+                "type": "booking",
+                "message": f"New booking request #{row[0]} created by {row[1]} for {row[3]}",
+                "time": time_str,
+                "timestamp": created_at.timestamp() if created_at else 0
+            })
+    except Exception:
+        pass
+
+    try:
+        # 2. Fetch recent payments
+        payments_res = await db.execute(text(
+            "SELECT p.amount, p.status, p.created_at, b.booking_number "
+            "FROM payments p JOIN bookings b ON p.booking_id = b.id "
+            "ORDER BY p.created_at DESC LIMIT 3"
+        ))
+        for row in payments_res:
+            created_at = row[2]
+            time_str = created_at.strftime("%H:%M:%S") if created_at else "Just now"
+            activities.append({
+                "type": "payment",
+                "message": f"Razorpay payment '{row[1]}' for Booking #{row[3]} (Rs. {float(row[0]):,.2f})",
+                "time": time_str,
+                "timestamp": created_at.timestamp() if created_at else 0
+            })
+    except Exception:
+        pass
+
+    try:
+        # 3. Fetch recent complaints
+        complaints_res = await db.execute(text(
+            "SELECT c.complaint_number, c.title, c.status, c.created_at "
+            "FROM complaints c ORDER BY c.created_at DESC LIMIT 3"
+        ))
+        for row in complaints_res:
+            created_at = row[3]
+            time_str = created_at.strftime("%H:%M:%S") if created_at else "Just now"
+            activities.append({
+                "type": "complaint",
+                "message": f"Complaint #{row[0]} status is '{row[2]}': '{row[1]}'",
+                "time": time_str,
+                "timestamp": created_at.timestamp() if created_at else 0
+            })
+    except Exception:
+        pass
+
+    try:
+        # 4. Fetch recent maintenance requests
+        maint_res = await db.execute(text(
+            "SELECT m.title, m.status, m.created_at, m.category "
+            "FROM maintenance_requests m ORDER BY m.created_at DESC LIMIT 3"
+        ))
+        for row in maint_res:
+            created_at = row[2]
+            time_str = created_at.strftime("%H:%M:%S") if created_at else "Just now"
+            activities.append({
+                "type": "maintenance",
+                "message": f"Maintenance request [{row[3]}] status is '{row[1]}': '{row[0]}'",
+                "time": time_str,
+                "timestamp": created_at.timestamp() if created_at else 0
+            })
+    except Exception:
+        pass
+
+    # Sort all activities by timestamp descending
+    activities.sort(key=lambda x: x.get("timestamp", 0), reverse=True)
+    # Strip timestamp before returning so it's a clean array
+    for a in activities:
+        a.pop("timestamp", None)
+    
+    # If no activities in DB yet, provide initial mock activities so it's not empty
+    if not activities:
+        activities = [
+            { "type": "booking", "message": "Database is ready. Waiting for live bookings...", "time": "System" },
+            { "type": "hostel", "message": "Hostel registry initialized successfully", "time": "System" },
+        ]
+
     payload = {
         "project":     "StayEase",
         "version":     "1.0.0",
@@ -360,6 +449,7 @@ async def get_system_stats(db: DBSession):
         "uptime":      uptime_seconds,
         "cached":      False,
         "cache_ttl":   STATS_CACHE_TTL,
+        "activities":  activities,
         "metrics": {
             "cpu":                   cpu_usage,
             "memory":                mem_usage,
@@ -395,6 +485,13 @@ async def get_system_stats(db: DBSession):
     _stats_cache["expires_at"] = now + STATS_CACHE_TTL
 
     return JSONResponse(content=payload)
+
+
+@app.post("/api/v1/system/stats/purge", include_in_schema=False)
+async def purge_system_stats_cache():
+    _stats_cache.clear()
+    return JSONResponse(content={"status": "success", "message": "System stats cache successfully purged."})
+
 
 
 @app.get("/", include_in_schema=False)
@@ -668,14 +765,19 @@ async def root():
       const [activities, setActivities] = useState([]);
       const [searchQuery, setSearchQuery] = useState("");
       const [selectedTag, setSelectedTag] = useState("all");
+      const [actionStatus, setActionStatus] = useState("");
       const consoleEndRef = useRef(null);
 
       // Fetch System Stats from Backend
-      const fetchStats = async () => {
+      const fetchStats = async (isForced = false) => {
         try {
-          const res = await fetch("/api/v1/system/stats");
+          const res = await fetch(`/api/v1/system/stats${isForced ? "?force=true" : ""}`);
           const data = await res.json();
           setStats(data);
+          
+          if (data.activities) {
+            setActivities(data.activities);
+          }
           
           // Append metrics history for charts (limit to 12 data points)
           setMetricsHistory(prev => {
@@ -717,6 +819,27 @@ async def root():
         }
       };
 
+      const handlePurgeCache = async () => {
+        setActionStatus("Purging...");
+        try {
+          const res = await fetch("/api/v1/system/stats/purge", { method: "POST" });
+          const data = await res.json();
+          setActionStatus("Cache Purged!");
+          setTimeout(() => setActionStatus(""), 3000);
+          fetchStats(true);
+        } catch (err) {
+          setActionStatus("Purge failed!");
+          setTimeout(() => setActionStatus(""), 3000);
+        }
+      };
+
+      const handleForceRefresh = async () => {
+        setActionStatus("Refreshing...");
+        await fetchStats(true);
+        setActionStatus("Refreshed!");
+        setTimeout(() => setActionStatus(""), 3000);
+      };
+
       useEffect(() => {
         fetchStats();
         fetchOpenapi();
@@ -730,16 +853,6 @@ async def root():
           initialLogs.push(`[${hours}:${minutes}:${seconds}] [SYSTEM] Background worker check_expired_bookings listening...`);
         }
         setLogs(initialLogs);
-
-        // Populate initial mock activities
-        setActivities([
-          { type: "booking", message: "New booking request #SE-3091 created by Arun Kapoor", time: "2 mins ago" },
-          { type: "payment", message: "Razorpay payment verified for Booking #SE-3088 (Rs. 8,500.00)", time: "5 mins ago" },
-          { type: "hostel", message: "Hostel 'Pearl Girls Hostel' approved by superadmin", time: "12 mins ago" },
-          { type: "user", message: "Visitor register verification OTP sent to arun.kapoor@gmail.com", time: "15 mins ago" },
-          { type: "document", message: "Aadhaar Card document uploaded for Booking #SE-3090", time: "25 mins ago" },
-          { type: "maintenance", message: "Maintenance request #MNT-229 submitted: 'Broken geyser in Room 204'", time: "42 mins ago" },
-        ]);
       }, []);
 
       useEffect(() => {
@@ -870,6 +983,37 @@ async def root():
               </div>
 
               <div class="flex items-center gap-4">
+                {/* Status Indicator */}
+                {actionStatus && (
+                  <span class="text-xs text-orange-400 animate-pulse font-mono bg-orange-500/10 px-2 py-0.5 rounded border border-orange-500/20">
+                    {actionStatus}
+                  </span>
+                )}
+
+                {/* Force Refresh Button */}
+                <button 
+                  onClick={handleForceRefresh}
+                  title="Bypass cache and force reload stats from DB"
+                  class="p-1.5 px-2.5 rounded-lg bg-white/5 border border-white/5 hover:border-orange-500/30 hover:bg-white/10 transition-all text-slate-300 hover:text-white flex items-center gap-1.5 cursor-pointer"
+                >
+                  <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 7.89M9 11l3-3 3 3m-3-3v12" />
+                  </svg>
+                  <span class="text-xs font-semibold">Force Refresh</span>
+                </button>
+
+                {/* Purge Cache Button */}
+                <button 
+                  onClick={handlePurgeCache}
+                  title="Purge server stats cache"
+                  class="p-1.5 px-2.5 rounded-lg bg-white/5 border border-white/5 hover:border-red-500/30 hover:bg-red-500/10 transition-all text-slate-300 hover:text-red-400 flex items-center gap-1.5 cursor-pointer"
+                >
+                  <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  <span class="text-xs font-semibold">Purge Cache</span>
+                </button>
+
                 {/* Refresh Speed Control */}
                 <div class="flex items-center gap-2 bg-white/5 border border-white/5 rounded-lg px-2 py-1">
                   <span class="text-xs text-slate-400">Poll Speed:</span>
