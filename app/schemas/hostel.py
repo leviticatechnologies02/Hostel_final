@@ -25,6 +25,7 @@ class HostelListItem(TimestampedResponse):
     starting_daily_price: float = 0.0
     starting_monthly_price: float = 0.0
     available_beds: int = 0
+    images: list[dict] = []          # ← primary + gallery images for card display
 
 
 class HostelDetailResponse(HostelListItem):

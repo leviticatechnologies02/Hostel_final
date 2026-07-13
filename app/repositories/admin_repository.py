@@ -50,10 +50,15 @@ class AdminRepository:
     async def list_hostels_by_ids(self, hostel_ids: list[str]) -> list[Hostel]:
         if not hostel_ids:
             return []
+        from sqlalchemy.orm import selectinload
         result = await self.session.execute(
-            select(Hostel).where(Hostel.id.in_(hostel_ids)).order_by(Hostel.created_at.desc())
+            select(Hostel)
+            .options(selectinload(Hostel.images))          # ← eager-load images
+            .where(Hostel.id.in_(hostel_ids))
+            .order_by(Hostel.created_at.desc())
         )
         return list(result.scalars().all())
+
 
     async def list_supervisors(self, hostel_id: str) -> list[User]:
         result = await self.session.execute(

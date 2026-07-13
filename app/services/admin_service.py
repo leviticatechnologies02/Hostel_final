@@ -78,9 +78,47 @@ class AdminService:
             ],
         }
 
-    async def list_hostels(self, hostel_ids: list[str]) -> list[Hostel]:
-        """List hostels by IDs."""
-        return await self.repository.list_hostels_by_ids(hostel_ids)
+    async def list_hostels(self, hostel_ids: list[str]) -> list[dict]:
+        """List hostels by IDs, including their images."""
+        hostels = await self.repository.list_hostels_by_ids(hostel_ids)
+        return [
+            {
+                "id": str(h.id),
+                "name": h.name,
+                "slug": h.slug,
+                "description": h.description,
+                "city": h.city,
+                "state": h.state,
+                "hostel_type": h.hostel_type.value,
+                "status": h.status.value,
+                "is_public": h.is_public,
+                "is_featured": h.is_featured,
+                "is_active": h.is_active,
+                "is_verified": h.is_verified,
+                "status_reason": h.status_reason,
+                "created_at": h.created_at,
+                "updated_at": h.updated_at,
+                "rating": 0.0,
+                "total_reviews": 0,
+                "starting_price": 0.0,
+                "starting_daily_price": 0.0,
+                "starting_monthly_price": 0.0,
+                "available_beds": 0,
+                "images": [
+                    {
+                        "id": str(img.id),
+                        "url": img.url,
+                        "thumbnail_url": img.thumbnail_url,
+                        "caption": img.caption,
+                        "is_primary": img.is_primary,
+                        "sort_order": img.sort_order,
+                    }
+                    for img in h.images
+                ],
+            }
+            for h in hostels
+        ]
+
 
     async def get_hostel(self, hostel_id: str) -> dict | None:
         hostel = await self.repository.get_hostel_by_id(hostel_id)
