@@ -6,7 +6,7 @@ from email_validator import validate_email, EmailNotValidError
 import re
 
 
-from app.schemas.base import TimestampedResponse
+from app.schemas.base import TimestampedResponse, APIModel
 
 
 class SuperAdminDashboardResponse(BaseModel):
@@ -65,6 +65,15 @@ class SuperAdminHostelCreateRequest(BaseModel):
 
 
 
+class ImageResponse(APIModel):
+    id: str
+    url: str
+    thumbnail_url: str | None = None
+    caption: str | None = None
+    is_primary: bool = False
+    sort_order: int = 0
+
+
 class SuperAdminHostelResponse(TimestampedResponse):
     name: str
     slug: str
@@ -90,6 +99,7 @@ class SuperAdminHostelResponse(TimestampedResponse):
     document_url: str | None = None
     document_type: str | None = None
     rules_and_regulations: str | None = None
+    images: list[ImageResponse] = []
 
 
 class SuperAdminAdminCreateRequest(BaseModel):
