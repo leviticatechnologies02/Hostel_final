@@ -152,7 +152,8 @@ class HostelService:
             from app.models.hostel import Hostel, HostelStatus
             
             # Simple query to get hostels - no joins first
-            query = select(Hostel).where(
+            from sqlalchemy.orm import selectinload
+            query = select(Hostel).options(selectinload(Hostel.images)).where(
                 Hostel.is_public == True,
                 Hostel.status == HostelStatus.ACTIVE
             )
@@ -207,6 +208,17 @@ class HostelService:
                     "starting_daily_price": 0.0,
                     "starting_monthly_price": 0.0,
                     "available_beds": 0,
+                    "images": [
+                        {
+                            "id": str(img.id),
+                            "url": img.url,
+                            "thumbnail_url": img.thumbnail_url,
+                            "caption": img.caption,
+                            "is_primary": img.is_primary,
+                            "sort_order": img.sort_order,
+                        }
+                        for img in hostel.images
+                    ],
                     "created_at": hostel.created_at,
                     "updated_at": hostel.updated_at,
                 })
