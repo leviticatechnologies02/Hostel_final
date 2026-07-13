@@ -26,6 +26,7 @@ class BookingCreateRequest(BaseModel):
     institution: Optional[str] = Field(None, max_length=255)
     current_address: Optional[str] = None
     id_type: Optional[str] = Field(None, max_length=100)
+    id_document_url: Optional[str] = Field(None, max_length=500)
     emergency_contact_name: Optional[str] = Field(None, max_length=255)
     emergency_contact_phone: Optional[str] = Field(None, max_length=30)
     emergency_contact_relationship: Optional[str] = Field(None, max_length=100)

@@ -101,6 +101,7 @@ class BookingService:
             institution=payload.institution,
             current_address=payload.current_address,
             id_type=payload.id_type,
+            id_document_url=payload.id_document_url,
             emergency_contact_name=payload.emergency_contact_name,
             emergency_contact_phone=payload.emergency_contact_phone,
             emergency_contact_relationship=payload.emergency_contact_relationship,
