@@ -1706,8 +1706,30 @@ async def not_found_handler(request, exc):
     return JSONResponse(status_code=404, content={"detail": "Not found.", "code": "not_found"})
 
 
+from sqlalchemy.exc import DBAPIError
+
+@app.exception_handler(DBAPIError)
+async def dbapi_exception_handler(request: Request, exc: DBAPIError):
+    error_msg = str(exc)
+    if "invalid uuid" in error_msg.lower() or "invalid input for query argument" in error_msg.lower():
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={
+                "detail": "Invalid ID format. Must be a valid UUID.",
+                "code": "invalid_id_format"
+            }
+        )
+    
+    import logging
+    logging.getLogger(__name__).error(f"Database error: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=500, content={"detail": "Internal server error.", "code": "internal_error"}
+    )
+
+
 @app.exception_handler(500)
 async def server_error_handler(request, exc):
     return JSONResponse(
         status_code=500, content={"detail": "Internal server error.", "code": "internal_error"}
     )
+
