@@ -61,9 +61,9 @@ class Booking(BaseModel):
     hostel_id: Mapped[str] = mapped_column(
         ForeignKey("hostels.id", ondelete="CASCADE"), index=True
     )
-    room_id: Mapped[str] = mapped_column(ForeignKey("rooms.id"), index=True)
+    room_id: Mapped[str] = mapped_column(ForeignKey("rooms.id", ondelete="CASCADE"), index=True)
     bed_id: Mapped[str | None] = mapped_column(
-        ForeignKey("beds.id"), nullable=True, index=True
+        ForeignKey("beds.id", ondelete="CASCADE"), nullable=True, index=True
     )
     booking_mode: Mapped[BookingMode] = mapped_column(Enum(BookingMode), index=True)
     status: Mapped[BookingStatus] = mapped_column(Enum(BookingStatus), index=True)
