@@ -388,6 +388,213 @@ async def get_student_payments_admin(
         for p in payments
     ]
 
+
+# ==================== HOSTEL ADMIN PAYMENT LIST & DETAILS ====================
+
+@router.get("/admin/hostels/{hostel_id}/payments", tags=["Admin Payments"])
+async def get_hostel_payments_admin(
+    hostel_id: str,
+    current_user: AdminUser,
+    db: DBSession,
+    payment_status: Optional[str] = None,
+    page: int = 1,
+    per_page: int = 20,
+):
+    """
+    **Get paginated payment list for a specific hostel (Admin/Super Admin).**
+    
+    Restricted to the admin's assigned hostels (unless Super Admin).
+    Returns basic payment info, transaction ID, status, and visitor/student names.
+    """
+    if current_user.role != "super_admin":
+        admin_hostel_ids = [str(hid) for hid in current_user.hostel_ids]
+        if hostel_id not in admin_hostel_ids:
+            raise HTTPException(
+                status_code=403,
+                detail="Access denied to this hostel's payment records."
+            )
+            
+    # Base queries
+    query = select(Payment).where(Payment.hostel_id == hostel_id)
+    count_query = select(func.count()).select_from(Payment).where(Payment.hostel_id == hostel_id)
+    
+    if payment_status:
+        query = query.where(Payment.status == payment_status)
+        count_query = count_query.where(Payment.status == payment_status)
+        
+    total_result = await db.execute(count_query)
+    total = int(total_result.scalar() or 0)
+    
+    query = query.order_by(Payment.created_at.desc()).offset((page - 1) * per_page).limit(per_page)
+    result = await db.execute(query)
+    payments = result.scalars().all()
+    
+    from app.models.booking import Booking
+    from app.models.student import Student
+    
+    items = []
+    for p in payments:
+        payer_name = None
+        payer_email = None
+        
+        # Try finding payer via booking or student
+        if p.booking_id:
+            b_result = await db.execute(
+                select(Booking.full_name, User.email)
+                .join(User, User.id == Booking.visitor_id)
+                .where(Booking.id == p.booking_id)
+            )
+            row = b_result.first()
+            if row:
+                payer_name, payer_email = row
+        elif p.student_id:
+            s_result = await db.execute(
+                select(User.full_name, User.email)
+                .join(Student, Student.user_id == User.id)
+                .where(Student.id == p.student_id)
+            )
+            row = s_result.first()
+            if row:
+                payer_name, payer_email = row
+                
+        items.append({
+            "payment_id": str(p.id),
+            "booking_id": str(p.booking_id) if p.booking_id else None,
+            "student_id": str(p.student_id) if p.student_id else None,
+            "payer_name": payer_name,
+            "payer_email": payer_email,
+            "amount": float(p.amount),
+            "payment_type": p.payment_type,
+            "payment_method": p.payment_method,
+            "status": p.status,
+            "transaction_id": p.gateway_payment_id or p.gateway_order_id,
+            "paid_at": p.paid_at.isoformat() if p.paid_at else None,
+            "created_at": p.created_at.isoformat() if p.created_at else None,
+        })
+        
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+    }
+
+
+@router.get("/admin/payments/{payment_id}", tags=["Admin Payments"])
+async def get_payment_detail_admin(
+    payment_id: str,
+    current_user: AdminUser,
+    db: DBSession,
+):
+    """
+    **Get complete details of a single payment (Admin/Super Admin).**
+    
+    Returns full transaction, visitor profile, booking, and hostel metadata.
+    Restricted to the admin's assigned hostels (unless Super Admin).
+    """
+    result = await db.execute(select(Payment).where(Payment.id == payment_id))
+    p = result.scalar_one_or_none()
+    
+    if not p:
+        raise HTTPException(status_code=404, detail="Payment record not found.")
+        
+    # Check access permission
+    if current_user.role != "super_admin":
+        admin_hostel_ids = [str(hid) for hid in current_user.hostel_ids]
+        if str(p.hostel_id) not in admin_hostel_ids:
+            raise HTTPException(
+                status_code=403,
+                detail="Access denied to this payment record."
+            )
+            
+    # Fetch details
+    hostel_result = await db.execute(select(Hostel).where(Hostel.id == p.hostel_id))
+    hostel = hostel_result.scalar_one_or_none()
+    
+    payer_info = None
+    booking_info = None
+    
+    from app.models.booking import Booking
+    from app.models.student import Student
+    
+    if p.booking_id:
+        b_result = await db.execute(
+            select(Booking, User)
+            .join(User, User.id == Booking.visitor_id)
+            .where(Booking.id == p.booking_id)
+        )
+        row = b_result.first()
+        if row:
+            booking, user = row
+            payer_info = {
+                "visitor_id": str(user.id),
+                "name": booking.full_name or user.full_name,
+                "email": user.email,
+                "phone": user.phone,
+                "id_type": booking.id_type,
+                "id_document_url": booking.id_document_url,
+                "gender": booking.gender,
+                "occupation": booking.occupation,
+                "current_address": booking.current_address,
+                "emergency_contact_name": booking.emergency_contact_name,
+                "emergency_contact_phone": booking.emergency_contact_phone,
+            }
+            booking_info = {
+                "booking_id": str(booking.id),
+                "status": booking.status.value if hasattr(booking.status, "value") else str(booking.status),
+                "check_in_date": str(booking.check_in_date),
+                "check_out_date": str(booking.check_out_date),
+                "total_months": booking.total_months,
+                "total_nights": booking.total_nights,
+                "base_rent_amount": float(booking.base_rent_amount or 0),
+                "security_deposit": float(booking.security_deposit or 0),
+                "grand_total": float(booking.grand_total or 0),
+            }
+    elif p.student_id:
+        s_result = await db.execute(
+            select(Student, User)
+            .join(User, User.id == Student.user_id)
+            .where(Student.id == p.student_id)
+        )
+        row = s_result.first()
+        if row:
+            student, user = row
+            payer_info = {
+                "student_id": str(student.id),
+                "user_id": str(user.id),
+                "name": user.full_name,
+                "email": user.email,
+                "phone": user.phone,
+                "gender": student.gender if hasattr(student, "gender") else None,
+                "status": student.status,
+            }
+
+    return {
+        "payment_id": str(p.id),
+        "status": p.status,
+        "amount": float(p.amount),
+        "payment_type": p.payment_type,
+        "payment_method": p.payment_method,
+        "transaction_id": p.gateway_payment_id or p.gateway_order_id,
+        "gateway_order_id": p.gateway_order_id,
+        "gateway_payment_id": p.gateway_payment_id,
+        "gateway_signature": p.gateway_signature,
+        "paid_at": p.paid_at.isoformat() if p.paid_at else None,
+        "created_at": p.created_at.isoformat() if p.created_at else None,
+        "updated_at": p.updated_at.isoformat() if p.updated_at else None,
+        "failure_reason": p.failure_reason,
+        "failure_code": p.failure_code,
+        "receipt_url": p.receipt_url,
+        "hostel": {
+            "hostel_id": str(hostel.id) if hostel else None,
+            "hostel_name": hostel.name if hostel else None,
+            "city": hostel.city if hostel else None,
+        },
+        "payer": payer_info,
+        "booking": booking_info,
+    }
+
+
 # ==================== STUDENT PAYMENT HISTORY ====================
 
 @router.get("/my-payments", response_model=list[PaymentResponse])
