@@ -1214,3 +1214,260 @@ async def validate_password(payload: ValidatePasswordRequest):
         is_valid=len(errors) == 0,
         errors=errors
     )
+
+
+# ==================== PAYMENT DETAIL APIs (Super Admin & Hostel Admin) ====================
+
+@router.get("/payments", tags=["Payments"])
+async def list_all_payments(
+    _: SuperAdmin,
+    db: DBSession,
+    hostel_id: str | None = None,
+    booking_id: str | None = None,
+    visitor_id: str | None = None,
+    payment_status: str | None = None,
+    page: int = 1,
+    per_page: int = 20,
+):
+    """
+    **[Super Admin] List all payments across the platform.**
+
+    Supports filtering by hostel, booking, visitor, and payment status.
+    Returns full payment details: amount, transaction ID, method, date/time, visitor info.
+    """
+    from sqlalchemy import func
+    from app.models.payment import Payment
+    from app.models.booking import Booking
+    from app.models.user import User
+
+    query = select(Payment)
+    count_query = select(func.count()).select_from(Payment)
+
+    if hostel_id:
+        query = query.where(Payment.hostel_id == hostel_id)
+        count_query = count_query.where(Payment.hostel_id == hostel_id)
+    if booking_id:
+        query = query.where(Payment.booking_id == booking_id)
+        count_query = count_query.where(Payment.booking_id == booking_id)
+    if payment_status:
+        query = query.where(Payment.status == payment_status)
+        count_query = count_query.where(Payment.status == payment_status)
+
+    total_result = await db.execute(count_query)
+    total = int(total_result.scalar() or 0)
+
+    query = query.order_by(Payment.created_at.desc()).offset((page - 1) * per_page).limit(per_page)
+    result = await db.execute(query)
+    payments = result.scalars().all()
+
+    items = []
+    for p in payments:
+        # Get visitor/user info from booking
+        visitor_info = None
+        if p.booking_id:
+            booking_result = await db.execute(
+                select(Booking, User)
+                .join(User, User.id == Booking.visitor_id)
+                .where(Booking.id == p.booking_id)
+            )
+            row = booking_result.first()
+            if row:
+                booking, user = row
+                visitor_info = {
+                    "visitor_id": str(user.id),
+                    "visitor_name": booking.full_name or user.full_name,
+                    "visitor_email": user.email,
+                    "visitor_phone": user.phone,
+                    "booking_check_in": str(booking.check_in_date),
+                    "booking_check_out": str(booking.check_out_date),
+                    "booking_type": booking.booking_type if hasattr(booking, "booking_type") else None,
+                }
+
+        items.append({
+            "payment_id": str(p.id),
+            "hostel_id": str(p.hostel_id),
+            "booking_id": str(p.booking_id) if p.booking_id else None,
+            "student_id": str(p.student_id) if p.student_id else None,
+            "amount": float(p.amount),
+            "payment_type": p.payment_type,
+            "payment_method": p.payment_method,
+            "status": p.status,
+            "transaction_id": p.gateway_payment_id or p.gateway_order_id,
+            "gateway_order_id": p.gateway_order_id,
+            "gateway_payment_id": p.gateway_payment_id,
+            "gateway_signature": p.gateway_signature,
+            "paid_at": p.paid_at.isoformat() if p.paid_at else None,
+            "created_at": p.created_at.isoformat() if p.created_at else None,
+            "updated_at": p.updated_at.isoformat() if p.updated_at else None,
+            "failure_reason": p.failure_reason,
+            "failure_code": p.failure_code,
+            "receipt_url": p.receipt_url,
+            "visitor": visitor_info,
+        })
+
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+        "total_pages": (total + per_page - 1) // per_page if per_page > 0 else 1,
+    }
+
+
+@router.get("/payments/{payment_id}", tags=["Payments"])
+async def get_payment_detail(
+    payment_id: str,
+    _: SuperAdmin,
+    db: DBSession,
+):
+    """
+    **[Super Admin] Get complete details of a single payment.**
+
+    Returns payment status, amount, transaction ID, payment date/time,
+    full visitor details, booking info, and gateway metadata.
+    """
+    from app.models.payment import Payment
+    from app.models.booking import Booking
+    from app.models.user import User
+    from app.models.hostel import Hostel
+
+    result = await db.execute(select(Payment).where(Payment.id == payment_id))
+    p = result.scalar_one_or_none()
+
+    if not p:
+        raise HTTPException(status_code=404, detail="Payment not found.")
+
+    # Hostel info
+    hostel_result = await db.execute(select(Hostel).where(Hostel.id == p.hostel_id))
+    hostel = hostel_result.scalar_one_or_none()
+
+    # Visitor + booking info
+    visitor_info = None
+    booking_info = None
+    if p.booking_id:
+        booking_result = await db.execute(
+            select(Booking, User)
+            .join(User, User.id == Booking.visitor_id)
+            .where(Booking.id == p.booking_id)
+        )
+        row = booking_result.first()
+        if row:
+            booking, user = row
+            visitor_info = {
+                "visitor_id": str(user.id),
+                "visitor_name": booking.full_name or user.full_name,
+                "visitor_email": user.email,
+                "visitor_phone": user.phone,
+                "id_type": booking.id_type,
+                "id_document_url": booking.id_document_url,
+                "gender": booking.gender,
+                "occupation": booking.occupation,
+                "current_address": booking.current_address,
+                "emergency_contact_name": booking.emergency_contact_name,
+                "emergency_contact_phone": booking.emergency_contact_phone,
+            }
+            booking_info = {
+                "booking_id": str(booking.id),
+                "booking_status": booking.status.value if hasattr(booking.status, "value") else str(booking.status),
+                "check_in_date": str(booking.check_in_date),
+                "check_out_date": str(booking.check_out_date),
+                "total_months": booking.total_months,
+                "total_nights": booking.total_nights,
+                "base_rent_amount": float(booking.base_rent_amount or 0),
+                "security_deposit": float(booking.security_deposit or 0),
+                "grand_total": float(booking.grand_total or 0),
+            }
+
+    return {
+        "payment_id": str(p.id),
+        "status": p.status,
+        "amount": float(p.amount),
+        "payment_type": p.payment_type,
+        "payment_method": p.payment_method,
+        "transaction_id": p.gateway_payment_id or p.gateway_order_id,
+        "gateway_order_id": p.gateway_order_id,
+        "gateway_payment_id": p.gateway_payment_id,
+        "gateway_signature": p.gateway_signature,
+        "paid_at": p.paid_at.isoformat() if p.paid_at else None,
+        "created_at": p.created_at.isoformat() if p.created_at else None,
+        "updated_at": p.updated_at.isoformat() if p.updated_at else None,
+        "failure_reason": p.failure_reason,
+        "failure_code": p.failure_code,
+        "receipt_url": p.receipt_url,
+        "hostel": {
+            "hostel_id": str(hostel.id) if hostel else None,
+            "hostel_name": hostel.name if hostel else None,
+            "city": hostel.city if hostel else None,
+        },
+        "visitor": visitor_info,
+        "booking": booking_info,
+    }
+
+
+@router.get("/hostels/{hostel_id}/payments", tags=["Payments"])
+async def list_hostel_payments(
+    hostel_id: str,
+    _: SuperAdmin,
+    db: DBSession,
+    payment_status: str | None = None,
+    page: int = 1,
+    per_page: int = 20,
+):
+    """
+    **[Super Admin] List all payments for a specific hostel.**
+
+    Includes visitor name, amount, transaction ID, and payment status.
+    """
+    from sqlalchemy import func
+    from app.models.payment import Payment
+    from app.models.booking import Booking
+    from app.models.user import User
+
+    query = select(Payment).where(Payment.hostel_id == hostel_id)
+    count_query = select(func.count()).select_from(Payment).where(Payment.hostel_id == hostel_id)
+
+    if payment_status:
+        query = query.where(Payment.status == payment_status)
+        count_query = count_query.where(Payment.status == payment_status)
+
+    total_result = await db.execute(count_query)
+    total = int(total_result.scalar() or 0)
+
+    query = query.order_by(Payment.created_at.desc()).offset((page - 1) * per_page).limit(per_page)
+    result = await db.execute(query)
+    payments = result.scalars().all()
+
+    items = []
+    for p in payments:
+        visitor_name = None
+        visitor_email = None
+        if p.booking_id:
+            br = await db.execute(
+                select(Booking.full_name, User.email)
+                .join(User, User.id == Booking.visitor_id)
+                .where(Booking.id == p.booking_id)
+            )
+            row = br.first()
+            if row:
+                visitor_name, visitor_email = row
+
+        items.append({
+            "payment_id": str(p.id),
+            "booking_id": str(p.booking_id) if p.booking_id else None,
+            "visitor_name": visitor_name,
+            "visitor_email": visitor_email,
+            "amount": float(p.amount),
+            "payment_type": p.payment_type,
+            "payment_method": p.payment_method,
+            "status": p.status,
+            "transaction_id": p.gateway_payment_id or p.gateway_order_id,
+            "paid_at": p.paid_at.isoformat() if p.paid_at else None,
+            "created_at": p.created_at.isoformat() if p.created_at else None,
+        })
+
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+    }
