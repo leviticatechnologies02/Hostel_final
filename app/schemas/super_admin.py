@@ -45,8 +45,7 @@ class SuperAdminHostelCreateRequest(BaseModel):
     state: str = Field(min_length=2, max_length=120)
     country: str = Field(default="India", min_length=2, max_length=120)
     pincode: str = Field(min_length=3, max_length=20)
-    latitude: float
-    longitude: float
+
     phone: str = Field(min_length=5, max_length=30)
     email: str = Field(min_length=5, max_length=255)
     website: str | None = Field(default=None, max_length=255)
