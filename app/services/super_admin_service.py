@@ -142,8 +142,7 @@ class SuperAdminService:
             self.session.add(mapping)
 
         await self.session.commit()
-        await self.session.refresh(hostel)
-        return hostel
+        return await self.repository.get_hostel_by_id(str(hostel.id))
 
     async def register_hostel(self, payload, owner_id: str):
         """
@@ -182,7 +181,6 @@ class SuperAdminService:
             hostel.document_url = payload.document_url
             hostel.document_type = payload.document_type
             await self.session.commit()
-            await self.session.refresh(hostel)
 
         # Send notification email to hostel owner
         await _send_email(
@@ -197,7 +195,7 @@ class SuperAdminService:
                 f"Regards,\nThe StayEase Team"
             ),
         )
-        return hostel
+        return await self.repository.get_hostel_by_id(str(hostel.id))
 
     async def update_hostel_status(self, hostel_id: str, status_value: HostelStatus):
         """Legacy simple status update — used by internal admin tools."""
@@ -213,8 +211,7 @@ class SuperAdminService:
             hostel.is_public  = False
             hostel.is_active  = False
         await self.session.commit()
-        await self.session.refresh(hostel)
-        return hostel
+        return await self.repository.get_hostel_by_id(str(hostel.id))
 
     async def approve_hostel(
         self,
@@ -248,7 +245,6 @@ class SuperAdminService:
         hostel.status_reason = None
 
         await self.session.commit()
-        await self.session.refresh(hostel)
 
         # Audit log
         import logging
@@ -269,7 +265,7 @@ class SuperAdminService:
                 f"Regards,\nThe StayEase Team"
             ),
         )
-        return hostel
+        return await self.repository.get_hostel_by_id(str(hostel.id))
 
     async def reject_hostel(
         self,
@@ -303,7 +299,6 @@ class SuperAdminService:
         hostel.status_reason = reason
 
         await self.session.commit()
-        await self.session.refresh(hostel)
 
         import logging
         logging.getLogger(__name__).info(
@@ -324,7 +319,7 @@ class SuperAdminService:
                 f"Regards,\nThe StayEase Team"
             ),
         )
-        return hostel
+        return await self.repository.get_hostel_by_id(str(hostel.id))
 
     async def request_hostel_changes(
         self,
@@ -357,7 +352,6 @@ class SuperAdminService:
         hostel.status_reason = reason
 
         await self.session.commit()
-        await self.session.refresh(hostel)
 
         import logging
         logging.getLogger(__name__).info(
@@ -378,7 +372,7 @@ class SuperAdminService:
                 f"Regards,\nThe StayEase Team"
             ),
         )
-        return hostel
+        return await self.repository.get_hostel_by_id(str(hostel.id))
 
     async def list_admins(self):
         return await self.repository.list_admins()

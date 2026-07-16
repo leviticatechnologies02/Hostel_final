@@ -62,7 +62,13 @@ class SuperAdminRepository:
         return hostel
 
     async def get_hostel_by_id(self, hostel_id: str) -> Hostel | None:
-        result = await self.session.execute(select(Hostel).where(Hostel.id == hostel_id))
+        from sqlalchemy.orm import selectinload
+        from app.models.hostel import AdminHostelMapping
+        query = select(Hostel).options(
+            selectinload(Hostel.images),
+            selectinload(Hostel.admin_mappings).selectinload(AdminHostelMapping.admin)
+        ).where(Hostel.id == hostel_id)
+        result = await self.session.execute(query)
         return result.scalar_one_or_none()
 
     async def delete_hostel(self, hostel: Hostel) -> None:
