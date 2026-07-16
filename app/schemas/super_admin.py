@@ -85,8 +85,7 @@ class SuperAdminHostelResponse(TimestampedResponse):
     state: str
     country: str
     pincode: str
-    latitude: float
-    longitude: float
+
     phone: str
     email: str
     website: str | None = None
