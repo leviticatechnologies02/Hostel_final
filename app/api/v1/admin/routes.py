@@ -683,8 +683,6 @@ async def check_out_student(booking_id: str, db: DBSession, current_user: AdminU
     return await BookingService(db).check_out_student(booking_id=booking_id, checked_out_by=current_user.id)
 
 
-@router.get("/hostels/{hostel_id}/payments", response_model=list[PaymentResponse])
-
 @router.get("/students/{student_id}/payments", response_model=list[PaymentResponse])
 async def get_student_payments_admin(
     student_id: str,
@@ -716,9 +714,22 @@ async def get_student_payments_admin(
                 detail="Access denied to this student's payment records."
             )
     
-    return await PaymentService(db).list_admin_payments(hostel_id=str(student.hostel_id))
+    # Return payments *only* for this specific student, not the entire hostel!
+    # Wait, the original code returned PaymentService(db).list_admin_payments(hostel_id=str(student.hostel_id))
+    # which lists ALL payments for the hostel! Let's restrict it to student-specific payments instead.
+    # Let's check PaymentService to see if it has student filtering.
+    # Actually, returning student.payments or similar makes more sense, or select(Payment).where(Payment.student_id == student.id)
+    from app.models.payment import Payment
+    p_result = await db.execute(
+        select(Payment).where(Payment.student_id == student.id).order_by(Payment.created_at.desc())
+    )
+    return p_result.scalars().all()
 
+
+@router.get("/hostels/{hostel_id}/payments", response_model=list[PaymentResponse])
 async def list_payments(hostel_id: str, db: DBSession, current_user: AdminUser):
+    """**List all payments for a specific hostel (Admin).**"""
+    from app.services.payment_service import PaymentService
     _check_hostel(current_user, hostel_id)
     return await PaymentService(db).list_admin_payments(hostel_id=hostel_id)
 
