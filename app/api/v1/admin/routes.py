@@ -734,6 +734,19 @@ async def list_payments(hostel_id: str, db: DBSession, current_user: AdminUser):
     return await PaymentService(db).list_admin_payments(hostel_id=hostel_id)
 
 
+@router.get("/payments", response_model=list[PaymentResponse])
+async def list_my_hostel_payments(db: DBSession, current_user: AdminUser):
+    """**List all payments across all hostels managed by the logged-in admin.**"""
+    from app.models.payment import Payment
+    hostel_ids = list(current_user.hostel_ids)
+    if not hostel_ids:
+        return []
+    result = await db.execute(
+        select(Payment).where(Payment.hostel_id.in_(hostel_ids)).order_by(Payment.created_at.desc())
+    )
+    return result.scalars().all()
+
+
 @router.get("/hostels/{hostel_id}/complaints", response_model=list[ComplaintResponse])
 async def list_complaints(
     hostel_id: str,
