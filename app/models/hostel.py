@@ -80,6 +80,22 @@ class Hostel(BaseModel):
         "Room", back_populates="hostel", cascade="all, delete-orphan"
     )
 
+    @property
+    def hostel_admin_name(self) -> str | None:
+        if self.admin_mappings:
+            for mapping in self.admin_mappings:
+                if mapping.admin:
+                    return mapping.admin.full_name
+        return None
+
+    @property
+    def hostel_admin_email(self) -> str | None:
+        if self.admin_mappings:
+            for mapping in self.admin_mappings:
+                if mapping.admin:
+                    return mapping.admin.email
+        return None
+
 
 class HostelAmenity(BaseModel):
     __tablename__ = "hostel_amenities"

@@ -26,14 +26,23 @@ class SuperAdminRepository:
 
     async def list_hostels(self) -> list[Hostel]:
         from sqlalchemy.orm import selectinload
-        result = await self.session.execute(select(Hostel).options(selectinload(Hostel.images)).order_by(Hostel.created_at.desc()))
+        result = await self.session.execute(
+            select(Hostel).options(
+                selectinload(Hostel.images),
+                selectinload(Hostel.admin_mappings).selectinload(AdminHostelMapping.admin)
+            ).order_by(Hostel.created_at.desc())
+        )
         return list(result.scalars().all())
 
     async def list_hostels_paginated(
         self, *, status: str | None = None, page: int = 1, per_page: int = 20
     ) -> tuple[list[Hostel], int]:
         from sqlalchemy.orm import selectinload
-        query = select(Hostel).options(selectinload(Hostel.images))
+        from app.models.hostel import AdminHostelMapping
+        query = select(Hostel).options(
+            selectinload(Hostel.images),
+            selectinload(Hostel.admin_mappings).selectinload(AdminHostelMapping.admin)
+        )
         count_query = select(func.count()).select_from(Hostel)
         if status:
             try:

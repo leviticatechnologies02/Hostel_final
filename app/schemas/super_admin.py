@@ -99,6 +99,8 @@ class SuperAdminHostelResponse(TimestampedResponse):
     document_url: str | None = None
     document_type: str | None = None
     rules_and_regulations: str | None = None
+    hostel_admin_name: str | None = None
+    hostel_admin_email: str | None = None
     images: list[ImageResponse] = []
 
 
