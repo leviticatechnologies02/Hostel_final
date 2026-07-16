@@ -87,6 +87,16 @@ class SuperAdminService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Hostel not found.")
         return hostel
 
+    async def delete_hostel(self, hostel_id: str) -> dict:
+        """Permanently delete a hostel and all its associated data."""
+        hostel = await self.repository.get_hostel_by_id(hostel_id)
+        if hostel is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Hostel not found.")
+        hostel_name = hostel.name
+        await self.repository.delete_hostel(hostel)
+        await self.session.commit()
+        return {"message": f"Hostel '{hostel_name}' has been permanently deleted.", "hostel_id": hostel_id}
+
     async def create_hostel(
         self,
         payload: SuperAdminHostelCreateRequest,

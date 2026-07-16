@@ -65,6 +65,11 @@ class SuperAdminRepository:
         result = await self.session.execute(select(Hostel).where(Hostel.id == hostel_id))
         return result.scalar_one_or_none()
 
+    async def delete_hostel(self, hostel: Hostel) -> None:
+        """Hard-delete a hostel and all its cascade-dependent records."""
+        await self.session.delete(hostel)
+        await self.session.flush()
+
     async def list_admins(self) -> list[User]:
         result = await self.session.execute(
             select(User).where(User.role == UserRole.HOSTEL_ADMIN).order_by(User.created_at.desc())

@@ -275,6 +275,16 @@ async def suspend_hostel(hostel_id: str, _: SuperAdmin, db: DBSession):
     return await SuperAdminService(db).update_hostel_status(hostel_id, HostelStatus.SUSPENDED)
 
 
+@router.delete("/hostels/{hostel_id}", status_code=200)
+async def delete_hostel(hostel_id: str, _: SuperAdmin, db: DBSession):
+    """**Permanently delete a hostel** and all its associated data (images, rooms, bookings, mappings).
+    
+    ⚠️ This action is **irreversible**. Use with caution.
+    Only super admins can perform this action.
+    """
+    return await SuperAdminService(db).delete_hostel(hostel_id)
+
+
 
 
 
