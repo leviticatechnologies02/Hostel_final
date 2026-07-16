@@ -960,11 +960,17 @@ async def root():
               ))}
             </nav>
 
-            <div class="p-4 border-t border-white/5">
+            <div class="p-4 border-t border-white/5 space-y-3">
               <a href="/docs" target="_blank" class="w-full flex items-center justify-between px-4 py-2.5 rounded-lg bg-orange-600 hover:bg-orange-700 text-white font-semibold text-sm transition-all duration-300 text-center shadow-lg shadow-orange-600/20">
                 <span>Swagger UI Docs</span>
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+              </a>
+              <a href="https://hma-theta.vercel.app/" target="_blank" class="w-full flex items-center justify-between px-4 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm transition-all duration-300 text-center shadow-lg shadow-emerald-600/20">
+                <span>Frontend App</span>
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
               </a>
             </div>
