@@ -33,9 +33,9 @@ class Student(BaseModel):
     hostel_id: Mapped[str] = mapped_column(
         ForeignKey("hostels.id", ondelete="CASCADE"), index=True
     )
-    room_id: Mapped[str] = mapped_column(ForeignKey("rooms.id"), index=True)
-    bed_id: Mapped[str] = mapped_column(ForeignKey("beds.id"), index=True)
-    booking_id: Mapped[str] = mapped_column(ForeignKey("bookings.id"), unique=True)
+    room_id: Mapped[str] = mapped_column(ForeignKey("rooms.id", ondelete="CASCADE"), index=True)
+    bed_id: Mapped[str] = mapped_column(ForeignKey("beds.id", ondelete="CASCADE"), index=True)
+    booking_id: Mapped[str] = mapped_column(ForeignKey("bookings.id", ondelete="CASCADE"), unique=True)
     student_number: Mapped[str] = mapped_column(String(50), unique=True, index=True)
     check_in_date: Mapped[date] = mapped_column(Date)
     check_out_date: Mapped[date | None] = mapped_column(Date, nullable=True)

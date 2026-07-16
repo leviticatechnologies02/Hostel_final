@@ -27,10 +27,10 @@ class Payment(BaseModel):
         ForeignKey("hostels.id", ondelete="CASCADE"), index=True
     )
     student_id: Mapped[str | None] = mapped_column(
-        ForeignKey("students.id"), nullable=True, index=True
+        ForeignKey("students.id", ondelete="CASCADE"), nullable=True, index=True
     )
     booking_id: Mapped[str | None] = mapped_column(
-        ForeignKey("bookings.id"), nullable=True, index=True
+        ForeignKey("bookings.id", ondelete="CASCADE"), nullable=True, index=True
     )
     amount: Mapped[float] = mapped_column(Numeric(10, 2))
     payment_type: Mapped[str] = mapped_column(String(50))
