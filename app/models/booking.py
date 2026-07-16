@@ -140,10 +140,10 @@ class BedStay(BaseModel):
         ForeignKey("beds.id", ondelete="CASCADE"), index=True
     )
     booking_id: Mapped[str | None] = mapped_column(
-        ForeignKey("bookings.id"), nullable=True, index=True
+        ForeignKey("bookings.id", ondelete="CASCADE"), nullable=True, index=True
     )
     student_id: Mapped[str | None] = mapped_column(
-        ForeignKey("students.id"), nullable=True, index=True
+        ForeignKey("students.id", ondelete="CASCADE"), nullable=True, index=True
     )
     start_date: Mapped[date] = mapped_column(Date)
     end_date: Mapped[date] = mapped_column(Date)
@@ -176,8 +176,8 @@ class WaitlistEntry(BaseModel):
     hostel_id: Mapped[str] = mapped_column(
         ForeignKey("hostels.id", ondelete="CASCADE"), index=True
     )
-    room_id: Mapped[str] = mapped_column(ForeignKey("rooms.id"), index=True)
-    bed_id: Mapped[str | None] = mapped_column(ForeignKey("beds.id"), nullable=True, index=True)
+    room_id: Mapped[str] = mapped_column(ForeignKey("rooms.id", ondelete="CASCADE"), index=True)
+    bed_id: Mapped[str | None] = mapped_column(ForeignKey("beds.id", ondelete="CASCADE"), nullable=True, index=True)
     check_in_date: Mapped[date] = mapped_column(Date)
     check_out_date: Mapped[date] = mapped_column(Date)
     booking_mode: Mapped[BookingMode] = mapped_column(Enum(BookingMode), index=True)

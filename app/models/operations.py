@@ -83,7 +83,7 @@ class MaintenanceRequest(BaseModel):
     hostel_id: Mapped[str] = mapped_column(
         ForeignKey("hostels.id", ondelete="CASCADE"), index=True
     )
-    room_id: Mapped[str | None] = mapped_column(ForeignKey("rooms.id"), nullable=True)
+    room_id: Mapped[str | None] = mapped_column(ForeignKey("rooms.id", ondelete="CASCADE"), nullable=True)
     reported_by: Mapped[str] = mapped_column(ForeignKey("users.id"))
     category: Mapped[str] = mapped_column(String(100))
     title: Mapped[str] = mapped_column(String(255))
@@ -110,7 +110,7 @@ class Notice(BaseModel):
     __tablename__ = "notices"
 
     hostel_id: Mapped[str | None] = mapped_column(
-        ForeignKey("hostels.id"), nullable=True, index=True
+        ForeignKey("hostels.id", ondelete="CASCADE"), nullable=True, index=True
     )
     title: Mapped[str] = mapped_column(String(255))
     content: Mapped[str] = mapped_column(Text)
@@ -200,7 +200,7 @@ class Review(BaseModel):
     hostel_id: Mapped[str] = mapped_column(
         ForeignKey("hostels.id", ondelete="CASCADE"), index=True
     )
-    booking_id: Mapped[str | None] = mapped_column(ForeignKey("bookings.id"), nullable=True)
+    booking_id: Mapped[str | None] = mapped_column(ForeignKey("bookings.id", ondelete="CASCADE"), nullable=True)
     overall_rating: Mapped[float]
     cleanliness_rating: Mapped[float]
     food_rating: Mapped[float]
