@@ -96,6 +96,14 @@ class Hostel(BaseModel):
                     return mapping.admin.email
         return None
 
+    @property
+    def hostel_admin_phone(self) -> str | None:
+        if self.admin_mappings:
+            for mapping in self.admin_mappings:
+                if mapping.admin:
+                    return mapping.admin.phone
+        return None
+
 
 class HostelAmenity(BaseModel):
     __tablename__ = "hostel_amenities"

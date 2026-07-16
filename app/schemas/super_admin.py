@@ -100,7 +100,11 @@ class SuperAdminHostelResponse(TimestampedResponse):
     document_type: str | None = None
     rules_and_regulations: str | None = None
     hostel_admin_name: str | None = None
+    hostel_admin_email: str | None = None
+    hostel_admin_phone: str | None = None
     images: list[ImageResponse] = []
+
+
 
 
 class SuperAdminAdminCreateRequest(BaseModel):
