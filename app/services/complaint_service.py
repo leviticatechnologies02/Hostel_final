@@ -35,6 +35,7 @@ class ComplaintService:
             priority=c.priority,
             status=c.status,
             assigned_to=str(c.assigned_to) if c.assigned_to else None,
+            photo_url=c.photo_url,
             resolution_notes=c.resolution_notes,
             resolved_at=c.resolved_at,
             sla_deadline=deadline,
@@ -64,6 +65,7 @@ class ComplaintService:
             description=payload.description,
             priority=payload.priority,
             status="open",
+            photo_url=payload.photo_url,
         )
         complaint = await self.complaints.create(complaint)
         await self.session.commit()

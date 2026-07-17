@@ -29,6 +29,7 @@ class Complaint(BaseModel):
     priority: Mapped[str] = mapped_column(String(50))
     status: Mapped[str] = mapped_column(String(50))
     assigned_to: Mapped[str | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    photo_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     resolved_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
