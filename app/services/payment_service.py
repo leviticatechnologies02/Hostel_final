@@ -8,10 +8,12 @@ class PaymentService:
         self.repository = PaymentRepository(session)
 
     async def list_student_payments(self, *, user_id: str):
-        student = await self.repository.get_student_by_user(user_id)
-        if student is None:
-            return []
-        return await self.repository.list_by_student(str(student.id))
+        """
+        Return all payments for this user — includes:
+        - Booking-advance payments (student_id=NULL, linked via booking_id)
+        - Post check-in rent/deposit payments (linked via student_id)
+        """
+        return await self.repository.list_by_user(user_id)
 
     async def list_admin_payments(self, *, hostel_id: str):
         return await self.repository.list_by_hostel(hostel_id)
