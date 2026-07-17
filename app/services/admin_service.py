@@ -388,10 +388,16 @@ class AdminService:
             select(func.count()).select_from(Student).where(Student.hostel_id.in_(hostel_ids))
         )
         complaints = await self.session.execute(
-            select(func.count()).select_from(Complaint).where(Complaint.hostel_id.in_(hostel_ids))
+            select(func.count()).select_from(Complaint).where(
+                Complaint.hostel_id.in_(hostel_ids),
+                Complaint.status.in_(["open", "in_progress"])
+            )
         )
         maintenance = await self.session.execute(
-            select(func.count()).select_from(MaintenanceRequest).where(MaintenanceRequest.hostel_id.in_(hostel_ids))
+            select(func.count()).select_from(MaintenanceRequest).where(
+                MaintenanceRequest.hostel_id.in_(hostel_ids),
+                MaintenanceRequest.status.in_(["open", "in_progress", "pending"])
+            )
         )
         payments = await self.session.execute(
             select(func.count()).select_from(Payment).where(Payment.hostel_id.in_(hostel_ids))
