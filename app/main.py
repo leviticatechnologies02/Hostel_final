@@ -12,6 +12,16 @@ from app.core.middleware import register_middleware
 settings = get_settings()
 
 import time
+import subprocess
+import logging
+
+logging.info("Running automatic database migrations...")
+try:
+    subprocess.run(["alembic", "upgrade", "head"], check=True)
+    logging.info("Migrations completed successfully.")
+except subprocess.CalledProcessError as e:
+    logging.error(f"Error running migrations: {e}")
+
 START_TIME = time.time()
 from app.dependencies import DBSession
 
