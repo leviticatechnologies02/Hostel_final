@@ -41,6 +41,15 @@ class Complaint(BaseModel):
         "ComplaintComment", back_populates="complaint", cascade="all, delete-orphan"
     )
 
+    @property
+    def student_name(self) -> str | None:
+        try:
+            if self.student and self.student.user:
+                return self.student.user.full_name
+        except Exception:
+            pass
+        return None
+
 
 class ComplaintComment(BaseModel):
     __tablename__ = "complaint_comments"

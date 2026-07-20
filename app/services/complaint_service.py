@@ -28,6 +28,7 @@ class ComplaintService:
             id=str(c.id),
             complaint_number=c.complaint_number,
             student_id=str(c.student_id),
+            student_name=c.student_name,
             hostel_id=str(c.hostel_id),
             category=c.category,
             title=c.title,

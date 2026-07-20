@@ -22,6 +22,7 @@ class ComplaintUpdateRequest(BaseModel):
 class ComplaintResponse(TimestampedResponse):
     complaint_number: str
     student_id: str
+    student_name: str | None = None
     hostel_id: str
     category: str
     title: str
