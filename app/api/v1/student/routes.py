@@ -282,6 +282,27 @@ async def payments(current_user: StudentUser, db: DBSession):
     return await PaymentService(db).list_student_payments(user_id=current_user.id)
 
 
+from app.schemas.payment import RemainingBalancePaymentRequest, RemainingBalancePaymentResponse
+from app.services.payment_write_service import PaymentWriteService
+
+@router.post("/payments/pay-remaining", response_model=RemainingBalancePaymentResponse)
+async def pay_remaining_balance(
+    payload: RemainingBalancePaymentRequest,
+    current_user: StudentUser,
+    db: DBSession
+):
+    """
+    **Pay the remaining balance for a booking.**
+    
+    This calculates the difference between the booking's grand total and all successful payments,
+    and creates a Razorpay order for the remaining amount.
+    """
+    return await PaymentWriteService(db).create_remaining_balance_payment(
+        payload=payload,
+        actor_id=current_user.id
+    )
+
+
 @router.get("/bookings", response_model=list[BookingResponse])
 async def bookings(current_user: StudentUser, db: DBSession):
     """**Student booking history** — all bookings in all statuses."""

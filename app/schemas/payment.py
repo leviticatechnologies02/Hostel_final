@@ -13,6 +13,19 @@ class BookingPaymentCreateRequest(BaseModel):
     payment_method: str = Field(default="razorpay", min_length=2, max_length=50)
 
 
+class RemainingBalancePaymentRequest(BaseModel):
+    """Request to pay the remaining balance on a booking."""
+    booking_id: str = Field(..., description="The booking to pay the remaining balance for")
+    payment_method: str = Field(default="razorpay", min_length=2, max_length=50)
+
+
+class RemainingBalancePaymentResponse(BaseModel):
+    """Response after initiating a remaining balance payment via Razorpay."""
+    payment: "PaymentResponse"
+    razorpay_order: dict
+    remaining_amount: float
+
+
 class BookingPaymentOrderResponse(BaseModel):
     payment: "PaymentResponse"
     razorpay_order: dict

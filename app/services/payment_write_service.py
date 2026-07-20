@@ -8,7 +8,7 @@ from app.models.booking import BookingStatus
 from app.models.payment import Payment
 from app.repositories.payment_write_repository import PaymentWriteRepository
 from app.repositories.booking_repository import BookingRepository
-from app.schemas.payment import BookingPaymentCreateRequest
+from app.schemas.payment import BookingPaymentCreateRequest, RemainingBalancePaymentRequest
 
 
 class PaymentWriteService:
@@ -296,3 +296,85 @@ class PaymentWriteService:
                     )
             except Exception:
                 pass  # Never block booking status update due to email failure
+
+    async def create_remaining_balance_payment(
+        self,
+        *,
+        payload: RemainingBalancePaymentRequest,
+        actor_id: str,
+    ) -> dict:
+        """
+        Create a Razorpay order for the remaining balance on a confirmed booking.
+
+        Steps:
+        1. Fetch the booking and verify the actor owns it.
+        2. Calculate remaining balance (grand_total - sum of captured payments).
+        3. Ensure there is actually something left to pay.
+        4. Create a Razorpay order for the remaining amount.
+        5. Create a Payment record with type "remaining_balance" in "pending" status.
+        """
+        from sqlalchemy import select
+        from app.models.booking import Booking
+
+        # 1. Fetch booking
+        result = await self.session.execute(
+            select(Booking).where(Booking.id == payload.booking_id)
+        )
+        booking = result.scalar_one_or_none()
+        if booking is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Booking not found.")
+        if str(booking.visitor_id) != actor_id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No booking access.")
+
+        # 2. Calculate total already paid (only captured payments)
+        paid_result = await self.session.execute(
+            select(Payment).where(
+                Payment.booking_id == payload.booking_id,
+                Payment.status == "captured",
+            )
+        )
+        captured_payments = paid_result.scalars().all()
+        total_paid = sum(float(p.amount) for p in captured_payments)
+        grand_total = float(booking.grand_total)
+        remaining = round(grand_total - total_paid, 2)
+
+        # 3. Validate remaining balance
+        if remaining <= 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"No remaining balance to pay. Booking is fully paid (₹{grand_total:.2f}).",
+            )
+
+        # 4. Create Razorpay order
+        try:
+            order = self.razorpay.create_order(
+                amount=remaining,
+                receipt=str(booking.booking_number),
+                notes={
+                    "booking_id": str(booking.id),
+                    "visitor_id": actor_id,
+                    "payment_type": "remaining_balance",
+                },
+            )
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=f"Payment gateway error: {str(e)}",
+            )
+
+        # 5. Create Payment record
+        payment = Payment(
+            hostel_id=str(booking.hostel_id),
+            booking_id=str(booking.id),
+            amount=remaining,
+            payment_type="remaining_balance",
+            payment_method=payload.payment_method,
+            gateway_order_id=order["id"],
+            status="pending",
+            due_date=booking.check_out_date,
+        )
+        self.session.add(payment)
+        await self.session.commit()
+        await self.session.refresh(payment)
+
+        return {"payment": payment, "razorpay_order": order, "remaining_amount": remaining}
