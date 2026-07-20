@@ -52,6 +52,16 @@ class Payment(BaseModel):
     student: Mapped[Student | None] = relationship("Student", back_populates="payments")
     booking: Mapped[Booking | None] = relationship("Booking", back_populates="payments")
 
+    @property
+    def remaining_balance(self) -> float | None:
+        try:
+            if self.booking:
+                total_paid = sum(p.amount for p in self.booking.payments if p.status.lower() == 'captured')
+                return float(self.booking.grand_total) - float(total_paid)
+        except Exception:
+            pass
+        return None
+
 
 class PaymentWebhookEvent(BaseModel):
     __tablename__ = "payment_webhook_events"

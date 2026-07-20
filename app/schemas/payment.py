@@ -40,6 +40,7 @@ class PaymentResponse(APIModel):
     paid_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
+    remaining_balance: float | None = None
     
 class PaymentTypeEnum(str, Enum):
     BOOKING_ADVANCE = "booking_advance"

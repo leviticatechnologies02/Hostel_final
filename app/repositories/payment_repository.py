@@ -47,6 +47,7 @@ class PaymentRepository:
 
         result = await self.session.execute(
             select(Payment)
+            .options(joinedload(Payment.booking).joinedload(Booking.payments))
             .where(or_(*filters))
             .order_by(Payment.created_at.desc())
         )
@@ -55,6 +56,9 @@ class PaymentRepository:
 
     async def list_by_hostel(self, hostel_id: str) -> list[Payment]:
         result = await self.session.execute(
-            select(Payment).where(Payment.hostel_id == hostel_id).order_by(Payment.created_at.desc())
+            select(Payment)
+            .options(joinedload(Payment.booking).joinedload(Booking.payments))
+            .where(Payment.hostel_id == hostel_id)
+            .order_by(Payment.created_at.desc())
         )
-        return list(result.scalars().all())
+        return list(result.scalars().unique().all())
