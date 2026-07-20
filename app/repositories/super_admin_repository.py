@@ -24,14 +24,20 @@ class SuperAdminRepository:
         result = await self.session.execute(select(func.count()).select_from(Subscription))
         return int(result.scalar_one() or 0)
 
-    async def list_hostels(self) -> list[Hostel]:
+    async def list_hostels(self, *, status: str | None = None) -> list[Hostel]:
         from sqlalchemy.orm import selectinload
-        result = await self.session.execute(
-            select(Hostel).options(
-                selectinload(Hostel.images),
-                selectinload(Hostel.admin_mappings).selectinload(AdminHostelMapping.admin)
-            ).order_by(Hostel.created_at.desc())
+        query = select(Hostel).options(
+            selectinload(Hostel.images),
+            selectinload(Hostel.admin_mappings).selectinload(AdminHostelMapping.admin)
         )
+        if status:
+            try:
+                status_enum = HostelStatus(status)
+                query = query.where(Hostel.status == status_enum)
+            except ValueError:
+                pass
+        
+        result = await self.session.execute(query.order_by(Hostel.created_at.desc()))
         return list(result.scalars().all())
 
     async def list_hostels_paginated(

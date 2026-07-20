@@ -74,8 +74,8 @@ class SuperAdminService:
             subscriptions=subscriptions,
         )
 
-    async def list_hostels(self):
-        return await self.repository.list_hostels()
+    async def list_hostels(self, *, status: str | None = None):
+        return await self.repository.list_hostels(status=status)
 
     async def list_hostels_paginated(self, *, status: str | None = None, page: int = 1, per_page: int = 20):
         items, total = await self.repository.list_hostels_paginated(status=status, page=page, per_page=per_page)

@@ -191,11 +191,11 @@ async def dashboard(_: SuperAdmin, db: DBSession):
 
 @router.get("/hostels", response_model=list[SuperAdminHostelResponse])
 
-async def list_hostels(_: SuperAdmin, db: DBSession):
+async def list_hostels(_: SuperAdmin, db: DBSession, status: str | None = None):
 
     """**List all hostels** across the platform in all statuses."""
 
-    return await SuperAdminService(db).list_hostels()
+    return await SuperAdminService(db).list_hostels(status=status)
 
 
 
