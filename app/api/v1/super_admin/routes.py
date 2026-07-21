@@ -191,11 +191,11 @@ async def dashboard(_: SuperAdmin, db: DBSession):
 
 @router.get("/hostels", response_model=list[SuperAdminHostelResponse])
 
-async def list_hostels(_: SuperAdmin, db: DBSession, status: str | None = None):
+async def list_hostels(_: SuperAdmin, db: DBSession, status: str | None = None, unassigned_only: bool = False):
 
-    """**List all hostels** across the platform in all statuses."""
+    """**List all hostels** across the platform in all statuses. Pass unassigned_only=true to get only hostels without an admin."""
 
-    return await SuperAdminService(db).list_hostels(status=status)
+    return await SuperAdminService(db).list_hostels(status=status, unassigned_only=unassigned_only)
 
 
 
