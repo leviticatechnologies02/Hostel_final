@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.repositories.admin_repository import AdminRepository
@@ -16,10 +17,12 @@ class SupervisorDashboardResponse(BaseModel):
     maintenance_requests: int
     notices: int
     hostels: int
+    hostel_names: list[str] = []
 
 
 class SupervisorService:
     def __init__(self, session: AsyncSession) -> None:
+        self.session = session
         self.assignments = AssignmentRepository(session)
         self.admin_repository = AdminRepository(session)
         self.attendance_repository = AttendanceRepository(session)
@@ -28,9 +31,19 @@ class SupervisorService:
         self.notice_service = NoticeService(session)
 
     async def get_dashboard(self, supervisor_id: str) -> SupervisorDashboardResponse:
+        from app.models.hostel import Hostel
+
         hostel_ids = await self.assignments.get_supervisor_hostel_ids(supervisor_id)
         students = await self.admin_repository.list_students_by_hostel_ids(hostel_ids)
         attendance_records = await self.attendance_repository.list_by_hostel_ids(hostel_ids)
+
+        # Fetch hostel names
+        hostel_names: list[str] = []
+        if hostel_ids:
+            result = await self.session.execute(
+                select(Hostel.name).where(Hostel.id.in_(hostel_ids))
+            )
+            hostel_names = [str(name) for name in result.scalars().all()]
 
         complaints_count = 0
         maintenance_count = 0
@@ -48,4 +61,5 @@ class SupervisorService:
             maintenance_requests=maintenance_count,
             notices=len(notices),
             hostels=len(hostel_ids),
+            hostel_names=hostel_names,
         )
