@@ -36,6 +36,8 @@ class Settings(BaseSettings):
         "http://localhost:5174", 
         "http://localhost:3000",
         "https://hostelproject-eta.vercel.app",
+        "https://www.leviticanestora.com",
+        "https://leviticanestora.com",
     ]
 
     # httpOnly refresh cookie settings

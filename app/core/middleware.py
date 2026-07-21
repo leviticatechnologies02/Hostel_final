@@ -15,6 +15,8 @@ def register_middleware(app: FastAPI) -> None:
         "http://localhost:8000",
         "https://hostelproject-eta.vercel.app",
         "https://*.vercel.app",  # Allow all Vercel preview deployments
+        "https://www.leviticanestora.com",
+        "https://leviticanestora.com",
     ]
     
     # Also include any origins from settings
