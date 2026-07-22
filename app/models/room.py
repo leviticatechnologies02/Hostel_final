@@ -17,6 +17,7 @@ class RoomType(str, enum.Enum):
     SINGLE = "single"
     DOUBLE = "double"
     TRIPLE = "triple"
+    QUADRUPLE = "quadruple"
     DORMITORY = "dormitory"
 
 
