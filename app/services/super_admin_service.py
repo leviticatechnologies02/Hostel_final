@@ -51,6 +51,12 @@ class SuperAdminService:
         active_result = await self.session.execute(
             select(func.count()).select_from(Hostel).where(Hostel.status == HostelStatus.ACTIVE)
         )
+        rejected_result = await self.session.execute(
+            select(func.count()).select_from(Hostel).where(Hostel.status == HostelStatus.REJECTED)
+        )
+        suspended_result = await self.session.execute(
+            select(func.count()).select_from(Hostel).where(Hostel.status == HostelStatus.SUSPENDED)
+        )
         students_result = await self.session.execute(select(func.count()).select_from(Student))
         revenue_result = await self.session.execute(
             select(func.coalesce(func.sum(Payment.amount), 0))
@@ -61,6 +67,8 @@ class SuperAdminService:
         )
         pending = int(pending_result.scalar_one() or 0)
         active = int(active_result.scalar_one() or 0)
+        rejected = int(rejected_result.scalar_one() or 0)
+        suspended = int(suspended_result.scalar_one() or 0)
         total_students = int(students_result.scalar_one() or 0)
         revenue_month = float(revenue_result.scalar_one() or 0)
         return SuperAdminDashboardResponse(
@@ -72,6 +80,8 @@ class SuperAdminService:
             hostels=hostels,
             admins=admins,
             subscriptions=subscriptions,
+            rejected_hostels=rejected,
+            suspended_hostels=suspended,
         )
 
     async def list_hostels(self, *, status: str | None = None, unassigned_only: bool = False):

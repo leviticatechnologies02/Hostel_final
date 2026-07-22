@@ -20,6 +20,9 @@ class SuperAdminDashboardResponse(BaseModel):
     hostels: int
     admins: int
     subscriptions: int
+    # New metrics requested by frontend
+    rejected_hostels: int = 0
+    suspended_hostels: int = 0
 
 
 # Update the SuperAdminAdminCreateRequest class in app/schemas/super_admin.py
