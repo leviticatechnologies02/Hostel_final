@@ -102,6 +102,10 @@ class SuperAdminRepository:
         )
         return result.scalar_one_or_none()
 
+    async def delete_admin(self, admin: User) -> None:
+        await self.session.delete(admin)
+        await self.session.flush()
+
     async def replace_admin_hostels(self, admin_id: str, hostel_ids: list[str], assigned_by: str) -> None:
         await self.session.execute(delete(AdminHostelMapping).where(AdminHostelMapping.admin_id == admin_id))
         for index, hostel_id in enumerate(hostel_ids):

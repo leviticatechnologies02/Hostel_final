@@ -427,6 +427,15 @@ class SuperAdminService:
         await self.session.commit()
         await self.session.refresh(admin)
         return admin
+
+    async def delete_admin(self, admin_id: str):
+        admin = await self.repository.get_admin_by_id(admin_id)
+        if not admin:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Admin not found")
+        
+        await self.repository.delete_admin(admin)
+        await self.session.commit()
+        return {"id": admin_id, "status": "deleted"}
             
     async def assign_hostels(self, actor_id: str, admin_id: str, payload: AssignHostelsRequest):
         """Assign hostels to an admin - with plan limit enforcement."""
