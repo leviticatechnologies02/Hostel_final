@@ -603,6 +603,16 @@ async def assign_hostel(admin_id: str, payload: AssignHostelRequest, current_use
     )
 
 
+@router.delete("/admins/{admin_id}/hostels/{hostel_id}")
+async def unassign_hostel(admin_id: str, hostel_id: str, current_user: SuperAdmin, db: DBSession):
+    """Unassign a hostel from an admin, making it available again."""
+    return await SuperAdminService(db).unassign_hostel(
+        actor_id=current_user.id,
+        admin_id=admin_id,
+        hostel_id=hostel_id,
+    )
+
+
 
 
 

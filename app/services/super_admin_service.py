@@ -516,6 +516,25 @@ class SuperAdminService:
         await self.session.commit()
         return {"admin_id": admin_id, "hostel_id": payload.hostel_id, "is_primary": payload.is_primary}
 
+    async def unassign_hostel(self, actor_id: str, admin_id: str, hostel_id: str):
+        admin = await self.repository.get_admin_by_id(admin_id)
+        if admin is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Admin not found.")
+            
+        from app.models.hostel import AdminHostelMapping
+        result = await self.session.execute(
+            select(AdminHostelMapping).where(
+                AdminHostelMapping.admin_id == admin_id,
+                AdminHostelMapping.hostel_id == hostel_id
+            )
+        )
+        mapping = result.scalar_one_or_none()
+        if mapping:
+            await self.session.delete(mapping)
+            await self.session.commit()
+            
+        return {"admin_id": admin_id, "hostel_id": hostel_id, "status": "unassigned"}
+
     async def list_subscriptions(self):
         return await self.repository.list_subscriptions()
 
