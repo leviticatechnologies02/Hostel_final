@@ -649,8 +649,8 @@ async def update_student(
         "email": user.email,
         "phone": user.phone,
         "profile_picture_url": user.profile_picture_url,
-        "gender": user.gender.value if hasattr(user.gender, "value") else user.gender if hasattr(user, "gender") else None,
-        "date_of_birth": str(user.date_of_birth) if hasattr(user, "date_of_birth") and user.date_of_birth else None,
+        "gender": getattr(user, "gender", None),
+        "date_of_birth": str(getattr(user, "date_of_birth")) if getattr(user, "date_of_birth", None) else None,
         "created_at": student.created_at,
         "updated_at": student.updated_at,
     }
