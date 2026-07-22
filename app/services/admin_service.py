@@ -417,6 +417,26 @@ class AdminService:
 
     async def create_supervisor(self, hostel_id: str, assigned_by: str, payload: SupervisorCreateRequest) -> User:
         """Create a supervisor and assign to hostel."""
+        # Check if email already exists
+        existing_email = await self.session.execute(
+            select(User).where(User.email == payload.email)
+        )
+        if existing_email.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Email '{payload.email}' is already registered."
+            )
+
+        # Check if phone already exists
+        existing_phone = await self.session.execute(
+            select(User).where(User.phone == payload.phone)
+        )
+        if existing_phone.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Phone number '{payload.phone}' is already registered."
+            )
+
         user = User(
             email=payload.email,
             phone=payload.phone,
