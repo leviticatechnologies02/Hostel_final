@@ -169,7 +169,7 @@ class AdminService:
             hostel_id=hostel_id,
             room_number=payload.room_number,
             floor=payload.floor,
-            room_type=payload.room_type.lower() if payload.room_type else None,
+            room_type=payload.room_type.upper() if payload.room_type else None,
             total_beds=payload.total_beds,
             daily_rent=payload.daily_rent,
             monthly_rent=payload.monthly_rent,
@@ -203,7 +203,7 @@ class AdminService:
             raise HTTPException(status_code=404, detail="Room not found.")
         update_data = payload.dict(exclude_unset=True)
         if "room_type" in update_data and update_data["room_type"]:
-            update_data["room_type"] = update_data["room_type"].lower()
+            update_data["room_type"] = update_data["room_type"].upper()
         
         for field, value in update_data.items():
             setattr(room, field, value)
