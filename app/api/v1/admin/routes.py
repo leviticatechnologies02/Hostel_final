@@ -640,6 +640,7 @@ async def update_student(
         "id": str(student.id),
         "user_id": str(student.user_id),
         "hostel_id": str(student.hostel_id),
+        "booking_id": str(student.booking_id),
         "student_number": student.student_number,
         "check_in_date": str(student.check_in_date),
         "check_out_date": str(student.check_out_date) if student.check_out_date else None,
@@ -648,6 +649,8 @@ async def update_student(
         "email": user.email,
         "phone": user.phone,
         "profile_picture_url": user.profile_picture_url,
+        "gender": user.gender.value if hasattr(user.gender, "value") else user.gender if hasattr(user, "gender") else None,
+        "date_of_birth": str(user.date_of_birth) if hasattr(user, "date_of_birth") and user.date_of_birth else None,
         "created_at": student.created_at,
         "updated_at": student.updated_at,
     }
