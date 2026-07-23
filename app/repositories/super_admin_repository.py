@@ -24,7 +24,7 @@ class SuperAdminRepository:
         result = await self.session.execute(select(func.count()).select_from(Subscription))
         return int(result.scalar_one() or 0)
 
-    async def list_hostels(self, *, status: str | None = None, unassigned_only: bool = False) -> list[Hostel]:
+    async def list_hostels(self, *, status: str | None = None, unassigned_only: bool = False, exclude_suspended_rejected: bool = False) -> list[Hostel]:
         from sqlalchemy.orm import selectinload
         query = select(Hostel).options(
             selectinload(Hostel.images),
@@ -39,6 +39,9 @@ class SuperAdminRepository:
         
         if unassigned_only:
             query = query.where(~Hostel.admin_mappings.any())
+            
+        if exclude_suspended_rejected:
+            query = query.where(Hostel.status.notin_([HostelStatus.REJECTED, HostelStatus.SUSPENDED]))
         
         result = await self.session.execute(query.order_by(Hostel.created_at.desc()))
         return list(result.scalars().all())

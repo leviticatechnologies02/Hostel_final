@@ -84,8 +84,8 @@ class SuperAdminService:
             suspended_hostels=suspended,
         )
 
-    async def list_hostels(self, *, status: str | None = None, unassigned_only: bool = False):
-        return await self.repository.list_hostels(status=status, unassigned_only=unassigned_only)
+    async def list_hostels(self, *, status: str | None = None, unassigned_only: bool = False, exclude_suspended_rejected: bool = False):
+        return await self.repository.list_hostels(status=status, unassigned_only=unassigned_only, exclude_suspended_rejected=exclude_suspended_rejected)
 
     async def list_hostels_paginated(self, *, status: str | None = None, page: int = 1, per_page: int = 20):
         items, total = await self.repository.list_hostels_paginated(status=status, page=page, per_page=per_page)

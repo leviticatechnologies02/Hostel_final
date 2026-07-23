@@ -50,6 +50,11 @@ class Settings(BaseSettings):
     razorpay_key_secret: str = ""
     razorpay_webhook_secret: str = ""
 
+    # Encryption key for storing sensitive values (Razorpay secrets) in the DB
+    # Generate: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+    encryption_key: str = Field(default="", description="Fernet encryption key for securing stored secrets")
+
+
     # 2Factor SMS OTP
     two_factor_api_key: str = Field(default="", description="2Factor.in Message API Key for SMS OTP")
 
