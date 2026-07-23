@@ -178,12 +178,19 @@ def validate_email(email: str) -> bool:
 
 
 @router.get("/dashboard", response_model=SuperAdminDashboardResponse)
-
-async def dashboard(_: SuperAdmin, db: DBSession):
-
+async def dashboard(current_user: SuperAdmin, db: DBSession):
     """**Platform overview** — total hostels, admins, and active subscriptions."""
+    data = await SuperAdminService(db).get_dashboard()
+    
+    # Fetch super admin's full name
+    from sqlalchemy import select
+    from app.models.user import User
+    user_result = await db.execute(select(User.full_name).where(User.id == current_user.id))
+    admin_name = user_result.scalar_one_or_none() or "Super Admin"
+    
+    data.super_admin_name = admin_name
+    return data
 
-    return await SuperAdminService(db).get_dashboard()
 
 
 

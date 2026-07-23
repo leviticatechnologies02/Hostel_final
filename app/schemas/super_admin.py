@@ -23,6 +23,8 @@ class SuperAdminDashboardResponse(BaseModel):
     # New metrics requested by frontend
     rejected_hostels: int = 0
     suspended_hostels: int = 0
+    super_admin_name: str = ""
+
 
 
 # Update the SuperAdminAdminCreateRequest class in app/schemas/super_admin.py
