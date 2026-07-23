@@ -440,6 +440,17 @@ class AdminService:
                 detail=f"Phone number '{payload.phone}' is already registered."
             )
 
+        # Rule: Each hostel can have only one supervisor.
+        from app.models.hostel import SupervisorHostelMapping
+        existing_hostel_mapping = await self.session.execute(
+            select(SupervisorHostelMapping).where(SupervisorHostelMapping.hostel_id == hostel_id)
+        )
+        if existing_hostel_mapping.scalars().first():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="This hostel already has a supervisor assigned."
+            )
+
         user = User(
             email=payload.email,
             phone=payload.phone,

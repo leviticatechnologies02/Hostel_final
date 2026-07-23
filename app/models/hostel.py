@@ -164,10 +164,10 @@ class SupervisorHostelMapping(BaseModel):
     )
 
     supervisor_id: Mapped[str] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"), index=True
+        ForeignKey("users.id", ondelete="CASCADE"), unique=True, index=True
     )
     hostel_id: Mapped[str] = mapped_column(
-        ForeignKey("hostels.id", ondelete="CASCADE"), index=True
+        ForeignKey("hostels.id", ondelete="CASCADE"), unique=True, index=True
     )
     assigned_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
