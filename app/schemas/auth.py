@@ -2,7 +2,7 @@ from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
 class VisitorRegisterRequest(BaseModel):
-    full_name: str = Field(min_length=2, max_length=255)
+    full_name: str = Field(min_length=2, max_length=255, pattern=r"^[A-Za-z\s\-\']+$")
     email: EmailStr
     phone: str = Field(min_length=8, max_length=30)
     password: str = Field(min_length=8, max_length=128)

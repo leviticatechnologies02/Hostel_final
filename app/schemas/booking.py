@@ -19,7 +19,7 @@ class BookingCreateRequest(BaseModel):
     booking_mode: BookingModeEnum
     check_in_date: date
     check_out_date: date
-    full_name: str = Field(min_length=2, max_length=255)
+    full_name: str = Field(min_length=2, max_length=255, pattern=r"^[A-Za-z\s\-\']+$")
     date_of_birth: Optional[date] = None
     gender: Optional[str] = Field(None, max_length=50)
     occupation: Optional[str] = Field(None, max_length=255)
