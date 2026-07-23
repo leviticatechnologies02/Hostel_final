@@ -201,7 +201,19 @@ async def dashboard(current_user: AdminUser, db: DBSession, hostel_id: str | Non
         ids = [hostel_id]
     else:
         ids = list(current_user.hostel_ids)
-    return await AdminService(db).get_dashboard(ids)
+    
+    data = await AdminService(db).get_dashboard(ids)
+    
+    # Fetch admin user's full name
+    from app.models.user import User
+    user_result = await db.execute(select(User.full_name).where(User.id == current_user.id))
+    admin_name = user_result.scalar_one_or_none() or "Unknown Admin"
+    
+    # Return as dict to populate response model correctly
+    dashboard_data = dict(data)
+    dashboard_data["hostel_admin_name"] = admin_name
+    return dashboard_data
+
 
 
 @router.get("/dashboard/unified")

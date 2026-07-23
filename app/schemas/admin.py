@@ -109,6 +109,8 @@ class AdminDashboardResponse(BaseModel):
     complaints: int
     maintenance_items: int
     payments: int
+    hostel_admin_name: str
+
 
 
 class SupervisorUpdateRequest(BaseModel):
