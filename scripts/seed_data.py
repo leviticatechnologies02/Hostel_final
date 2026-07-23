@@ -1,5 +1,5 @@
 """
-StayEase - Complete Seed Data Script
+Levitica Nestora - Complete Seed Data Script
 Run: python -m scripts.seed_data --clean (from hostel-management-api/)
 Populates: users, hostels, rooms, beds, bookings, students, payments,
            mess menus, notices, complaints, attendance, maintenance, reviews.
@@ -122,8 +122,8 @@ HOSTELS_CONFIG = [
         "latitude": 17.4474,
         "longitude": 78.3762,
         "phone": "+91-9876543210",
-        "email": "greenvalley@stayease.in",
-        "website": "https://greenvalley.stayease.in",
+        "email": "greenvalley@leviticanestora.in",
+        "website": "https://greenvalley.leviticanestora.in",
         "rules": (
             "1. Visitors allowed only in common areas between 9 AM - 8 PM.\n"
             "2. No smoking or alcohol on premises.\n"
@@ -164,8 +164,8 @@ HOSTELS_CONFIG = [
         "latitude": 12.9352,
         "longitude": 77.6245,
         "phone": "+91-9876543211",
-        "email": "pearl@stayease.in",
-        "website": "https://pearl.stayease.in",
+        "email": "pearl@leviticanestora.in",
+        "website": "https://pearl.leviticanestora.in",
         "rules": (
             "1. Male visitors strictly not allowed beyond reception.\n"
             "2. Gate closes at 10 PM. Late entry requires prior permission.\n"
@@ -205,8 +205,8 @@ HOSTELS_CONFIG = [
         "latitude": 18.5074,
         "longitude": 73.8077,
         "phone": "+91-9876543212",
-        "email": "sunrise@stayease.in",
-        "website": "https://sunrise.stayease.in",
+        "email": "sunrise@leviticanestora.in",
+        "website": "https://sunrise.leviticanestora.in",
         "rules": (
             "1. Separate floors for male and female residents.\n"
             "2. Common areas accessible to all residents.\n"
@@ -246,8 +246,8 @@ HOSTELS_CONFIG = [
         "latitude": 19.1136,
         "longitude": 72.8697,
         "phone": "+91-9876543213",
-        "email": "metro@stayease.in",
-        "website": "https://metro.stayease.in",
+        "email": "metro@leviticanestora.in",
+        "website": "https://metro.leviticanestora.in",
         "rules": (
             "1. AC rooms — do not tamper with AC settings.\n"
             "2. Gate closes at 11 PM. Late entry via security intercom.\n"
@@ -389,7 +389,7 @@ MAINTENANCE_DATA = [
 # ---------------------------------------------------------------------------
 # Seeder class
 # ---------------------------------------------------------------------------
-class StayEaseSeeder:
+class Levitica NestoraSeeder:
     def __init__(self, session: AsyncSession):
         self.session = session
         self.users: dict[str, str] = {}
@@ -781,21 +781,21 @@ class StayEaseSeeder:
 
     async def run(self) -> None:
         print("\n" + "="*60)
-        print("  🌱  StayEase — Full Seed Data Population")
+        print("  🌱  Levitica Nestora — Full Seed Data Population")
         print("="*60 + "\n")
 
         # ── Users ──────────────────────────────────────────────────────
         print("👤 Creating users...\n")
 
         await self.create_user(
-            "superadmin@stayease.com", "+91-9000000001",
+            "superadmin@leviticanestora.com", "+91-9000000001",
             "Super Admin", UserRole.SUPER_ADMIN,
         )
 
         admin_ids = []
         for i in range(2):
             aid = await self.create_user(
-                f"admin{i+1}@stayease.com", f"+91-900000010{i}",
+                f"admin{i+1}@leviticanestora.com", f"+91-900000010{i}",
                 f"Hostel Admin {i+1}", UserRole.HOSTEL_ADMIN,
             )
             admin_ids.append(aid)
@@ -803,7 +803,7 @@ class StayEaseSeeder:
         supervisor_ids = []
         for i in range(4):
             sid = await self.create_user(
-                f"supervisor{i+1}@stayease.com", f"+91-900000020{i}",
+                f"supervisor{i+1}@leviticanestora.com", f"+91-900000020{i}",
                 f"Supervisor {i+1}", UserRole.SUPERVISOR,
             )
             supervisor_ids.append(sid)
@@ -1022,10 +1022,10 @@ class StayEaseSeeder:
 
   🔑 Login credentials (all use password: Test@1234)
   ──────────────────────────────────────
-  Super Admin  : superadmin@stayease.com
-  Admin 1      : admin1@stayease.com
-  Admin 2      : admin2@stayease.com
-  Supervisor 1 : supervisor1@stayease.com
+  Super Admin  : superadmin@leviticanestora.com
+  Admin 1      : admin1@leviticanestora.com
+  Admin 2      : admin2@leviticanestora.com
+  Supervisor 1 : supervisor1@leviticanestora.com
   Visitor 1    : arun.kapoor@gmail.com
   Student 1    : abhilash.gurrampally.lev029@levitica.in
   Student 22   : hemant.pawade.lev044@levitica.in
@@ -1073,7 +1073,7 @@ async def _run():
 
     async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
     async with async_session() as session:
-        seeder = StayEaseSeeder(session)
+        seeder = Levitica NestoraSeeder(session)
         await seeder.run()
     await engine.dispose()
 

@@ -52,7 +52,7 @@ class CloudinaryClient:
 
     def _mock_url(self, filename: str) -> str:
         """Placeholder URL used when Cloudinary is not configured (local dev only)."""
-        return f"https://placeholder.stayease.dev/uploads/{filename}"
+        return f"https://placeholder.leviticanestora.dev/uploads/{filename}"
 
     def _resource_type(self, content_type: str) -> str:
         """Derive Cloudinary resource_type from MIME type."""
@@ -71,7 +71,7 @@ class CloudinaryClient:
         For images Cloudinary auto-appends the extension, so we strip it from the public_id.
         For raw files (PDF etc.) we keep the extension so the URL is predictable.
         """
-        pid = f"stayease/{file_name}"
+        pid = f"leviticanestora/{file_name}"
         if resource_type == "image" and "." in pid:
             pid = pid.rsplit(".", 1)[0]
         return pid
@@ -154,7 +154,7 @@ class CloudinaryClient:
             rtype    = self._resource_type(content_type)
             file_url = (
                 f"https://res.cloudinary.com/{self.cloud_name}"
-                f"/{rtype}/upload/stayease/{unique_filename}"
+                f"/{rtype}/upload/leviticanestora/{unique_filename}"
             )
 
         return {

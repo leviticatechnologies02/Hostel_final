@@ -20,7 +20,7 @@ def req(method, path, body=None, token=None):
         except Exception:
             return e.code, {}
 
-_, sup_login = req("POST", "/auth/login", {"email_or_phone": "supervisor1@stayease.com", "password": "Test@1234"})
+_, sup_login = req("POST", "/auth/login", {"email_or_phone": "supervisor1@leviticanestora.com", "password": "Test@1234"})
 sup_token = sup_login.get("access_token", "")
 
 tests = [

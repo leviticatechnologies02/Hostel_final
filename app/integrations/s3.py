@@ -39,7 +39,7 @@ class S3Client:
         return self._client
 
     def _mock_url(self, filename: str) -> str:
-        return f"https://storage.stayease.dev/uploads/{filename}"
+        return f"https://storage.leviticanestora.dev/uploads/{filename}"
 
     async def get_presigned_upload_url(
         self,
@@ -54,7 +54,7 @@ class S3Client:
             # S3 not configured — return mock response for dev/test environments
             # Frontend detects X-Amz-Mock=true and skips the actual PUT
             mock_upload_url = (
-                f"https://stayease-uploads.s3.ap-south-1.amazonaws.com/{unique_filename}"
+                f"https://leviticanestora-uploads.s3.ap-south-1.amazonaws.com/{unique_filename}"
                 f"?X-Amz-Mock=true&X-Amz-Expires={expires_in}"
             )
             return {

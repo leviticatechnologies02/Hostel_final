@@ -63,7 +63,7 @@ async def get_hostel_qr_code(
     
     # Create UPI QR string
     # Format: upi://pay?pa=hostel@upi&pn=HostelName&am=Amount&cu=INR
-    upi_id = f"stayease.hostel.{hostel_id[:8]}@okhdfcbank"
+    upi_id = f"leviticanestora.hostel.{hostel_id[:8]}@okhdfcbank"
     
     qr_string = f"upi://pay?pa={upi_id}&pn={hostel.name.replace(' ', '%20')}&cu=INR"
     if amount and amount > 0:

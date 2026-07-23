@@ -8,7 +8,7 @@ import asyncio
 import asyncpg
 from datetime import datetime
 
-DATABASE_URL = "postgresql://postgres:Kiran$1234@localhost:5432/stayease_dev"
+DATABASE_URL = "postgresql://postgres:Kiran$1234@localhost:5432/leviticanestora_dev"
 
 async def check_students():
     """Check student data in database"""

@@ -45,7 +45,7 @@ def test_update_supervisor():
     print("="*60)
     
     # Login as Admin
-    admin_token, hostel_ids = login("admin1@stayease.com")
+    admin_token, hostel_ids = login("admin1@leviticanestora.com")
     if not admin_token:
         print("❌ Admin login failed")
         return False
@@ -97,7 +97,7 @@ def test_delete_supervisor():
     print("="*60)
     
     # Login as Admin
-    admin_token, hostel_ids = login("admin1@stayease.com")
+    admin_token, hostel_ids = login("admin1@leviticanestora.com")
     if not admin_token:
         print("❌ Admin login failed")
         return False
@@ -111,7 +111,7 @@ def test_delete_supervisor():
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
     
     create_data = {
-        "email": f"test.delete.{timestamp}@stayease.com",
+        "email": f"test.delete.{timestamp}@leviticanestora.com",
         "phone": f"+91-9{timestamp[-9:]}",
         "full_name": f"Delete Test {timestamp}",
         "password": "Test@1234"
@@ -163,7 +163,7 @@ def test_update_nonexistent_supervisor():
     print("TEST: Update Nonexistent Supervisor (404)")
     print("="*60)
     
-    admin_token, _ = login("admin1@stayease.com")
+    admin_token, _ = login("admin1@leviticanestora.com")
     if not admin_token:
         print("❌ Admin login failed")
         return False
@@ -190,7 +190,7 @@ def test_delete_nonexistent_supervisor():
     print("TEST: Delete Nonexistent Supervisor (404)")
     print("="*60)
     
-    admin_token, _ = login("admin1@stayease.com")
+    admin_token, _ = login("admin1@leviticanestora.com")
     if not admin_token:
         print("❌ Admin login failed")
         return False
@@ -216,7 +216,7 @@ def test_update_supervisor_unauthorized():
     print("="*60)
     
     # Login as Admin 1
-    admin1_token, hostel_ids1 = login("admin1@stayease.com")
+    admin1_token, hostel_ids1 = login("admin1@leviticanestora.com")
     if not admin1_token:
         print("❌ Admin 1 login failed")
         return False
@@ -239,7 +239,7 @@ def test_update_supervisor_unauthorized():
     supervisor_id = supervisors[0].get('id')
     
     # Login as Admin 2 (different admin, different hostel)
-    admin2_token, hostel_ids2 = login("admin2@stayease.com")
+    admin2_token, hostel_ids2 = login("admin2@leviticanestora.com")
     if not admin2_token:
         print("❌ Admin 2 login failed")
         return False

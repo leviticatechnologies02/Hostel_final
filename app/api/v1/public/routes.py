@@ -71,7 +71,7 @@ def _serve_html_list(hostels: list, total: int, page: int, per_page: int) -> HTM
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>StayEase — Public Hostels API</title>
+<title>Levitica Nestora — Public Hostels API</title>
 <style>
 *{{margin:0;padding:0;box-sizing:border-box}}
 body{{font-family:'Segoe UI',system-ui,sans-serif;background:#0a0a14;color:#fff;min-height:100vh;overflow-x:hidden}}
@@ -117,7 +117,7 @@ footer a{{color:#FF6B35;text-decoration:none}}
 </header>
 <div class="hero">
   <h1>Public Hostels Endpoint</h1>
-  <p>Live data from the StayEase platform. Click any card to view on the frontend.</p>
+  <p>Live data from the Levitica Nestora platform. Click any card to view on the frontend.</p>
   <div class="meta">
     <div><strong>{len(hostels)}</strong>hostels returned</div>
     <div><strong>v1</strong>API version</div>
@@ -129,7 +129,7 @@ footer a{{color:#FF6B35;text-decoration:none}}
   <a href="/docs">📖 Swagger UI</a> &nbsp;·&nbsp;
   <a href="/redoc">📚 ReDoc</a> &nbsp;·&nbsp;
   <a href="/api/v1/public/hostels" onclick="this.href+='?_json=1'">⬇ Raw JSON</a> &nbsp;·&nbsp;
-  StayEase API v1.0.0
+  Levitica Nestora API v1.0.0
 </footer>
 </body>
 </html>"""
@@ -569,4 +569,4 @@ async def direct_upload(
         content=content,
         content_type=ct,
     )
-    return {"url": url, "filename": file.filename, "content_type": ct, "status": "success"}
+    return {"url": url, "filename": file.filename, "content_type": ct, "status": "success"}

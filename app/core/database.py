@@ -10,7 +10,7 @@ settings = get_settings()
 # Configure SSL for asyncpg if not localhost/127.0.0.1
 connect_args = {
     "server_settings": {
-        "application_name": "stayease_api",
+        "application_name": "leviticanestora_api",
         "statement_timeout": "30000",
         "idle_in_transaction_session_timeout": "60000",
     },

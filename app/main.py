@@ -38,11 +38,11 @@ _stats_cache: dict = {}       # {"data": {...}, "expires_at": float}
 # Swagger / OpenAPI description — rendered at http://localhost:8000/docs
 # ─────────────────────────────────────────────────────────────────────────────
 _DESCRIPTION = """
-# 🏠 StayEase API — Multi-Tenant Hostel Management & Booking Platform
+# 🏠 Levitica Nestora API — Multi-Tenant Hostel Management & Booking Platform
 
 > **India's hostel management platform** — bed-level inventory, day-wise & monthly bookings,
 > multi-role operations, Razorpay payments, and Gmail OTP emails.
-> Built for **Levitica Technologies — DCM StayEase**.
+> Built for **Levitica Technologies — DCM Levitica Nestora**.
 
 ---
 
@@ -52,11 +52,11 @@ All accounts use password: **`Test@1234`**
 
 | Role | Email | Access |
 |------|-------|--------|
-| 🛡️ Super Admin | `superadmin@stayease.com` | Approve hostels, create admins, manage subscriptions, full platform |
-| 🏢 Hostel Admin 1 | `admin1@stayease.com` | Rooms, beds, bookings, students, complaints, attendance — Hyderabad + Pune |
-| 🏢 Hostel Admin 2 | `admin2@stayease.com` | Rooms, beds, bookings, students, complaints, attendance — Bangalore + Mumbai |
-| 👷 Supervisor 1 | `supervisor1@stayease.com` | Attendance, complaints, maintenance, notices, mess menu — Green Valley (Hyderabad) |
-| 👷 Supervisor 2 | `supervisor2@stayease.com` | Attendance, complaints, maintenance, notices, mess menu — Pearl Girls (Bangalore) |
+| 🛡️ Super Admin | `superadmin@leviticanestora.com` | Approve hostels, create admins, manage subscriptions, full platform |
+| 🏢 Hostel Admin 1 | `admin1@leviticanestora.com` | Rooms, beds, bookings, students, complaints, attendance — Hyderabad + Pune |
+| 🏢 Hostel Admin 2 | `admin2@leviticanestora.com` | Rooms, beds, bookings, students, complaints, attendance — Bangalore + Mumbai |
+| 👷 Supervisor 1 | `supervisor1@leviticanestora.com` | Attendance, complaints, maintenance, notices, mess menu — Green Valley (Hyderabad) |
+| 👷 Supervisor 2 | `supervisor2@leviticanestora.com` | Attendance, complaints, maintenance, notices, mess menu — Pearl Girls (Bangalore) |
 | 🧑‍🎓 Student (Hemant) | `hemant.pawade.lev044@levitica.in` | Own profile, bookings, payments, attendance, complaints, notices |
 | 🙋 Visitor | `arun.kapoor@gmail.com` | Browse hostels, create bookings, pay, write reviews, manage favorites |
 
@@ -267,13 +267,13 @@ _TAGS_METADATA = [
 # App
 # ─────────────────────────────────────────────────────────────────────────────
 app = FastAPI(
-    title="StayEase API",
+    title="Levitica Nestora API",
     version="1.0.0",
     description=_DESCRIPTION,
     openapi_tags=_TAGS_METADATA,
     contact={
-        "name": "StayEase Platform",
-        "email": "support@stayease.com",
+        "name": "Levitica Nestora Platform",
+        "email": "support@leviticanestora.com",
     },
     license_info={
         "name": "MIT",
@@ -452,7 +452,7 @@ async def get_system_stats(db: DBSession, force: bool = False):
         ]
 
     payload = {
-        "project":     "StayEase",
+        "project":     "Levitica Nestora",
         "version":     "1.0.0",
         "build":       "2026.07.10.01",
         "environment": "production" if not settings.debug else "development",
@@ -516,7 +516,7 @@ async def root():
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>StayEase Developer Portal & API Hub</title>
+  <title>Levitica Nestora Developer Portal & API Hub</title>
   
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -929,7 +929,7 @@ async def root():
                 SE
               </div>
               <div>
-                <h1 class="font-extrabold text-white leading-tight tracking-tight">StayEase</h1>
+                <h1 class="font-extrabold text-white leading-tight tracking-tight">Levitica Nestora</h1>
                 <span class="text-[10px] uppercase font-bold tracking-widest text-slate-400">DevPortal V1.0</span>
               </div>
             </div>
@@ -1078,7 +1078,7 @@ async def root():
                   {activeTab === "dashboard" && (
                     <div class="space-y-8 animate-[slideUp_0.4s_ease-out]">
                       <div>
-                        <h2 class="text-3xl font-extrabold text-white tracking-tight">StayEase Control Center</h2>
+                        <h2 class="text-3xl font-extrabold text-white tracking-tight">Levitica Nestora Control Center</h2>
                         <p class="text-slate-400 mt-1">Real-time infrastructure control panel and health metrics.</p>
                       </div>
 
@@ -1175,7 +1175,7 @@ async def root():
                             <div class="grid grid-cols-2 gap-4 text-sm">
                               <div class="flex justify-between py-1 border-b border-white/5">
                                 <span class="text-slate-400">Hostel Registry Service</span>
-                                <span class="font-mono text-slate-200">StayEase Backend</span>
+                                <span class="font-mono text-slate-200">Levitica Nestora Backend</span>
                               </div>
                               <div class="flex justify-between py-1 border-b border-white/5">
                                 <span class="text-slate-400">Database Engine</span>
@@ -1308,7 +1308,7 @@ async def root():
                             <span class="w-3 h-3 rounded-full bg-red-500"></span>
                             <span class="w-3 h-3 rounded-full bg-yellow-500"></span>
                             <span class="w-3 h-3 rounded-full bg-emerald-500"></span>
-                            <span class="text-xs font-mono font-bold text-slate-400 ml-2">stayease-api-live.log</span>
+                            <span class="text-xs font-mono font-bold text-slate-400 ml-2">leviticanestora-api-live.log</span>
                           </div>
                           <span class="text-[10px] bg-orange-500/10 text-orange-400 px-2 py-0.5 rounded font-bold uppercase">Websocket stream</span>
                         </div>
@@ -1628,7 +1628,7 @@ async def root():
 
             {/* PLATFORM METRICS FOOTER */}
             <footer class="h-14 glass border-t border-white/5 px-8 flex items-center justify-between text-xs text-slate-500">
-              <div>StayEase Platform Engine v1.0.0 &nbsp;·&nbsp; Build: 2026.07.10.01</div>
+              <div>Levitica Nestora Platform Engine v1.0.0 &nbsp;·&nbsp; Build: 2026.07.10.01</div>
               <div>FastAPI & PostgreSQL & Redis</div>
             </footer>
 
@@ -1648,7 +1648,7 @@ async def root():
 @app.get("/health", tags=["health"])
 async def healthcheck():
     """Server liveness probe — returns 200 if the API is running."""
-    return {"status": "ok", "version": "1.0.0", "platform": "StayEase"}
+    return {"status": "ok", "version": "1.0.0", "platform": "Levitica Nestora"}
 
 
 _HTTP_CODE_MAP: dict[int, str] = {

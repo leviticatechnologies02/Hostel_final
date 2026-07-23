@@ -247,7 +247,7 @@ class StudentDetailsAPITester:
         print_header("TEST: Admin Student Detail Endpoint")
         
         # Login as Hostel Admin
-        admin_data = login("admin1@stayease.com")
+        admin_data = login("admin1@leviticanestora.com")
         if not admin_data:
             self.add_result("Admin Login", False)
             return None
@@ -292,7 +292,7 @@ class StudentDetailsAPITester:
         print_header("TEST: Super Admin Student Detail Endpoint")
         
         # Login as Super Admin
-        sa_data = login("superadmin@stayease.com")
+        sa_data = login("superadmin@leviticanestora.com")
         if not sa_data:
             self.add_result("Super Admin Login", False)
             return None
@@ -398,7 +398,7 @@ class StudentDetailsAPITester:
         print_header("TEST: Get Student ID from Admin List")
         
         # Login as Hostel Admin
-        admin_data = login("admin1@stayease.com")
+        admin_data = login("admin1@leviticanestora.com")
         if not admin_data:
             return None
         

@@ -1,6 +1,6 @@
 # Hostel Registration & Approval Workflow
 
-This document outlines the end-to-end architecture and workflow for onboarding new hostels into the StayEase/HostelHub platform. 
+This document outlines the end-to-end architecture and workflow for onboarding new hostels into the Levitica Nestora/HostelHub platform. 
 
 It covers both the public-facing registration process and the internal Super Admin approval process.
 

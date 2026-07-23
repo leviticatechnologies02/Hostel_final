@@ -7,14 +7,14 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    app_name: str = "StayEase API"
+    app_name: str = "Levitica Nestora API"
     app_env: str = "development"
     debug: bool = True
     api_prefix: str = "/api/v1"
     
     # Database configuration with Render support
     database_url: str = Field(
-        default="postgresql+asyncpg://stayease_db_0hw4_user:0L7DvsoMZ4ff88BYqohgiceUJITTSmJG@dpg-d7kaci4m0tmc73aeivm0-a.oregon-postgres.render.com:5432/stayease_db_0hw4"
+        default="postgresql+asyncpg://leviticanestora_db_0hw4_user:0L7DvsoMZ4ff88BYqohgiceUJITTSmJG@dpg-d7kaci4m0tmc73aeivm0-a.oregon-postgres.render.com:5432/leviticanestora_db_0hw4"
     )
 
     # Redis configuration
@@ -68,12 +68,12 @@ class Settings(BaseSettings):
     smtp_port: int = Field(default=587, description="SMTP server port")
     smtp_user: str = Field(default="", description="SMTP username")
     smtp_password: str = Field(default="", description="SMTP password")
-    email_from: str = Field(default="noreply@stayease.com", description="From email address")
+    email_from: str = Field(default="noreply@leviticanestora.com", description="From email address")
     
     # AWS S3 Configuration
     aws_access_key_id: str = Field(default="", description="AWS access key ID")
     aws_secret_access_key: str = Field(default="", description="AWS secret access key")
-    aws_storage_bucket_name: str = Field(default="stayease-uploads", description="S3 bucket name")
+    aws_storage_bucket_name: str = Field(default="leviticanestora-uploads", description="S3 bucket name")
     aws_region: str = Field(default="ap-south-1", description="AWS region")
 
     # Cloudinary Configuration

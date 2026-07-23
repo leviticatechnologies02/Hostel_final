@@ -2,7 +2,7 @@ services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: stayease_dev
+      POSTGRES_DB: leviticanestora_dev
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
@@ -30,7 +30,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/stayease_dev
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/leviticanestora_dev
       REDIS_URL: redis://redis:6379/0
       SECRET_KEY: dev-secret-key-change-in-production
       DEBUG: "true"
@@ -46,7 +46,7 @@ services:
   worker:
     build: .
     environment:
-      DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/stayease_dev
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/leviticanestora_dev
       REDIS_URL: redis://redis:6379/0
       SECRET_KEY: dev-secret-key-change-in-production
       DEBUG: "true"

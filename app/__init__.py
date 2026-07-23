@@ -1,1 +1,1 @@
-"""StayEase backend package."""
+"""Levitica Nestora backend package."""

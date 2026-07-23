@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-StayEase Notice API Diagnostic and Test Script
+Levitica Nestora Notice API Diagnostic and Test Script
 This script first discovers the correct API endpoints, then tests them.
 
 Usage: python test_notice_apis_v2.py
@@ -75,7 +75,7 @@ class NoticeAPIDiagnostic:
         
         # Login as Admin
         status, data = self.make_request('POST', '/auth/login', {
-            'email_or_phone': 'admin1@stayease.com',
+            'email_or_phone': 'admin1@leviticanestora.com',
             'password': 'Test@1234'
         })
         
@@ -89,7 +89,7 @@ class NoticeAPIDiagnostic:
         
         # Login as Super Admin
         status, data = self.make_request('POST', '/auth/login', {
-            'email_or_phone': 'superadmin@stayease.com',
+            'email_or_phone': 'superadmin@leviticanestora.com',
             'password': 'Test@1234'
         })
         if status == 200:
@@ -98,7 +98,7 @@ class NoticeAPIDiagnostic:
         
         # Login as Supervisor
         status, data = self.make_request('POST', '/auth/login', {
-            'email_or_phone': 'supervisor1@stayease.com',
+            'email_or_phone': 'supervisor1@leviticanestora.com',
             'password': 'Test@1234'
         })
         if status == 200:
@@ -409,7 +409,7 @@ class NoticeAPIDiagnostic:
     def run(self):
         """Run all tests"""
         print("\n" + "="*70)
-        print(f"  {CYAN}🏠 STAYEASE - NOTICE API DIAGNOSTIC & TEST SUITE{RESET}")
+        print(f"  {CYAN}🏠 LEVITICA_NESTORA - NOTICE API DIAGNOSTIC & TEST SUITE{RESET}")
         print("="*70)
         
         if not self.login():

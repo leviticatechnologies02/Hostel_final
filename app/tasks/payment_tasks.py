@@ -45,7 +45,7 @@ def send_payment_reminder_task(
             <p>Dear {student_name},</p>
             <p>This is a reminder that your payment of ₹{payment_due_amount:,.2f} is due on {due_date}.</p>
             <p>Please log in to your account to complete the payment.</p>
-            <p>Best regards,<br>StayEase Team</p>
+            <p>Best regards,<br>Levitica Nestora Team</p>
         </body>
         </html>
         """

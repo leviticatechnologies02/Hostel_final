@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-StayEase Mess Menu API Test Script
+Levitica Nestora Mess Menu API Test Script
 Tests all CRUD operations: List, Create, Update, Delete
 
 Run: python test_mess_menu_api.py
@@ -77,7 +77,7 @@ class MessMenuAPITester:
         self.log_section("Authentication")
         
         status, data = self.make_request("POST", "/auth/login", body={
-            "email_or_phone": "admin1@stayease.com",
+            "email_or_phone": "admin1@leviticanestora.com",
             "password": "Test@1234"
         })
         
@@ -94,7 +94,7 @@ class MessMenuAPITester:
     def login_super_admin(self) -> bool:
         """Login as super admin"""
         status, data = self.make_request("POST", "/auth/login", body={
-            "email_or_phone": "superadmin@stayease.com",
+            "email_or_phone": "superadmin@leviticanestora.com",
             "password": "Test@1234"
         })
         
@@ -357,7 +357,7 @@ class MessMenuAPITester:
     def run_all_tests(self):
         """Run all test cases"""
         print(f"\n{GREEN}{'='*70}{RESET}")
-        print(f"{GREEN}  🍽️  StayEase Mess Menu API Test Suite{RESET}")
+        print(f"{GREEN}  🍽️  Levitica Nestora Mess Menu API Test Suite{RESET}")
         print(f"{GREEN}{'='*70}{RESET}")
         print(f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         print(f"API URL: {BASE_URL}")

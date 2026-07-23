@@ -5,13 +5,13 @@ import asyncpg
 async def create_db():
     conn = await asyncpg.connect("postgresql://postgres:1234@localhost:5432/postgres")
     exists = await conn.fetchval(
-        "SELECT 1 FROM pg_database WHERE datname = $1", "stayease_dev"
+        "SELECT 1 FROM pg_database WHERE datname = $1", "leviticanestora_dev"
     )
     if not exists:
-        await conn.execute("CREATE DATABASE stayease_dev")
-        print("Database stayease_dev created.")
+        await conn.execute("CREATE DATABASE leviticanestora_dev")
+        print("Database leviticanestora_dev created.")
     else:
-        print("Database stayease_dev already exists.")
+        print("Database leviticanestora_dev already exists.")
     await conn.close()
 
 
@@ -131,7 +131,7 @@ class SupervisorRoutesTester:
         print_section("SETUP")
         
         # Login as Supervisor
-        supervisor_data = login("supervisor1@stayease.com")
+        supervisor_data = login("supervisor1@leviticanestora.com")
         if not supervisor_data:
             print_error("Cannot proceed without supervisor login")
             return False

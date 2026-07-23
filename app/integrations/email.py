@@ -1,5 +1,5 @@
 """
-Email service for StayEase.
+Email service for Levitica Nestora.
 Uses aiosmtplib for async SMTP — works with Gmail, Mailtrap, and any SMTP provider.
 Falls back to console logging when SMTP is not configured (dev mode).
 """
@@ -37,7 +37,7 @@ async def _send_smtp(*, to: str, subject: str, html: str) -> None:
     s = get_settings()
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
-    msg["From"] = f"StayEase <{s.email_from}>"
+    msg["From"] = f"Levitica Nestora <{s.email_from}>"
     msg["To"] = to
     
     # Strip basic HTML tags for the plain text version
@@ -84,7 +84,7 @@ async def _send_brevo(*, to: str, subject: str, html: str) -> None:
 
     payload = {
         "sender": {
-            "name": "StayEase",
+            "name": "Levitica Nestora",
             "email": sender_email
         },
         "to": [
@@ -164,7 +164,7 @@ def _base(title: str, header_color: str, body: str) -> str:
 <body>
 <div class="wrap">
 {body}
-<div class="ftr">© 2026 StayEase · support@stayease.com · <a href="http://localhost:5173" style="color:#FF6B35">stayease.com</a></div>
+<div class="ftr">© 2026 Levitica Nestora · support@leviticanestora.com · <a href="http://localhost:5173" style="color:#FF6B35">leviticanestora.com</a></div>
 </div>
 </body>
 </html>"""
@@ -178,7 +178,7 @@ def otp_email_html(name: str, otp: str, purpose: str = "verification") -> str:
 </div>
 <div class="body">
   <p>Hi <strong>{name}</strong>,</p>
-  <p style="margin-top:12px">{'Use this OTP to verify your email and activate your StayEase account.' if purpose == 'registration' else 'Use this OTP to reset your StayEase password.'}</p>
+  <p style="margin-top:12px">{'Use this OTP to verify your email and activate your Levitica Nestora account.' if purpose == 'registration' else 'Use this OTP to reset your Levitica Nestora password.'}</p>
   <div class="otp">{otp}</div>
   <div class="warn">
     ⏱ This OTP expires in <strong>10 minutes</strong>.<br>
@@ -186,7 +186,7 @@ def otp_email_html(name: str, otp: str, purpose: str = "verification") -> str:
     {'If you did not register, ignore this email.' if purpose == 'registration' else 'If you did not request a reset, ignore this email.'}
   </div>
 </div>"""
-    return _base("OTP — StayEase", "#FF6B35", body)
+    return _base("OTP — Levitica Nestora", "#FF6B35", body)
 
 
 def booking_confirmation_html(
@@ -216,7 +216,7 @@ def booking_confirmation_html(
   <p>Arrive on your check-in date with this booking number. The hostel admin will check you in.</p>
   <div style="text-align:center"><a href="http://localhost:5173/my-bookings" class="btn" style="background:#2D6A4F">View My Bookings</a></div>
 </div>"""
-    return _base("Booking Confirmed — StayEase", "#2D6A4F", body)
+    return _base("Booking Confirmed — Levitica Nestora", "#2D6A4F", body)
 
 
 def payment_receipt_html(
@@ -241,13 +241,13 @@ def payment_receipt_html(
   </div>
   <p>Keep this email as your payment receipt.</p>
 </div>"""
-    return _base("Payment Receipt — StayEase", "#06D6A0", body)
+    return _base("Payment Receipt — Levitica Nestora", "#06D6A0", body)
 
 
 def welcome_email_html(name: str) -> str:
     body = f"""
 <div class="hdr" style="background:linear-gradient(135deg,#FF6B35,#FFD166)">
-  <h1>🎉 Welcome to StayEase!</h1>
+  <h1>🎉 Welcome to Levitica Nestora!</h1>
   <p>India's trusted hostel booking platform</p>
 </div>
 <div class="body">
@@ -264,7 +264,7 @@ def welcome_email_html(name: str) -> str:
   <div style="text-align:center"><a href="http://localhost:5173/hostels" class="btn">Explore Hostels</a></div>
   <p>Your journey to hassle-free hostel living starts now!</p>
 </div>"""
-    return _base("Welcome to StayEase!", "#FF6B35", body)
+    return _base("Welcome to Levitica Nestora!", "#FF6B35", body)
 
 
 def contact_lead_html(
@@ -293,14 +293,14 @@ class EmailService:
     async def send_password_reset_otp(self, *, recipient_email: str, recipient_name: str, otp: str) -> bool:
         return await send_email(
             to=recipient_email,
-            subject="Password Reset OTP — StayEase",
+            subject="Password Reset OTP — Levitica Nestora",
             html=otp_email_html(recipient_name, otp, "password_reset"),
         )
 
     async def send_registration_otp(self, *, recipient_email: str, recipient_name: str, otp: str) -> bool:
         return await send_email(
             to=recipient_email,
-            subject="Verify Your Email — StayEase",
+            subject="Verify Your Email — Levitica Nestora",
             html=otp_email_html(recipient_name, otp, "registration"),
         )
 
@@ -312,7 +312,7 @@ class EmailService:
     ) -> bool:
         return await send_email(
             to=recipient_email,
-            subject=f"Booking Confirmed {booking_number} — StayEase",
+            subject=f"Booking Confirmed {booking_number} — Levitica Nestora",
             html=booking_confirmation_html(
                 recipient_name, booking_number, hostel_name,
                 check_in_date, check_out_date, total_amount, payment_status,
@@ -326,14 +326,14 @@ class EmailService:
     ) -> bool:
         return await send_email(
             to=recipient_email,
-            subject=f"Payment Receipt ₹{amount:,.0f} — StayEase",
+            subject=f"Payment Receipt ₹{amount:,.0f} — Levitica Nestora",
             html=payment_receipt_html(recipient_name, amount, payment_type, transaction_id, payment_date),
         )
 
     async def send_registration_welcome(self, *, recipient_email: str, recipient_name: str) -> bool:
         return await send_email(
             to=recipient_email,
-            subject="Welcome to StayEase! 🎉",
+            subject="Welcome to Levitica Nestora! 🎉",
             html=welcome_email_html(recipient_name),
         )
 
@@ -343,7 +343,7 @@ class EmailService:
     ) -> bool:
         return await send_email(
             to=recipient_email,
-            subject="We received your inquiry — StayEase",
+            subject="We received your inquiry — Levitica Nestora",
             html=contact_lead_html(recipient_name, hostel_name, city, inquiry_type, message),
         )
 

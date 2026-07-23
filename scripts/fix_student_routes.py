@@ -210,7 +210,7 @@ def check_database_connection():
             print_error(f"{name}: Failed (HTTP {status})")
     
     # Check admin endpoints with auth
-    token = login("admin1@stayease.com")
+    token = login("admin1@leviticanestora.com")
     if token:
         status, data = make_request("GET", "/admin/my-hostels", token=token)
         if status == 200:

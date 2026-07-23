@@ -17,7 +17,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app.config import get_settings
 from app.core.database import Base
-from scripts.seed_data import StayEaseSeeder
+from scripts.seed_data import Levitica NestoraSeeder
 
 # Import all models so Base.metadata knows about them
 import app.models.user
@@ -34,7 +34,7 @@ async def seed_render():
     settings = get_settings()
     
     print(f"\n{'='*60}")
-    print("  🌱 Seeding StayEase Database on Render")
+    print("  🌱 Seeding Levitica Nestora Database on Render")
     print(f"{'='*60}\n")
     print(f"Database URL: {settings.database_url[:50]}...\n")
     
@@ -50,7 +50,7 @@ async def seed_render():
     # Create session and run seeder
     async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
     async with async_session() as session:
-        seeder = StayEaseSeeder(session)
+        seeder = Levitica NestoraSeeder(session)
         await seeder.run()
     
     await engine.dispose()

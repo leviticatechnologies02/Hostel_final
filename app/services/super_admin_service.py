@@ -195,14 +195,14 @@ class SuperAdminService:
         # Send notification email to hostel owner
         await _send_email(
             to=payload.email,
-            subject="✅ Your Hostel Registration Was Received — StayEase",
+            subject="✅ Your Hostel Registration Was Received — Levitica Nestora",
             body=(
                 f"Hi,\n\n"
-                f"Thank you for registering '{payload.name}' on StayEase.\n\n"
+                f"Thank you for registering '{payload.name}' on Levitica Nestora.\n\n"
                 f"Your registration is now under review. Our team will inspect your details and "
                 f"get back to you within 2–3 business days.\n\n"
                 f"You will receive an email once it is approved, rejected, or if we need any changes.\n\n"
-                f"Regards,\nThe StayEase Team"
+                f"Regards,\nThe Levitica Nestora Team"
             ),
         )
         return await self.repository.get_hostel_by_id(str(hostel.id))
@@ -265,14 +265,14 @@ class SuperAdminService:
         # Email notification to hostel owner
         await _send_email(
             to=hostel.email,
-            subject="🎉 Congratulations! Your Hostel is Now Live on StayEase",
+            subject="🎉 Congratulations! Your Hostel is Now Live on Levitica Nestora",
             body=(
                 f"Dear Owner of '{hostel.name}',\n\n"
                 f"We're delighted to inform you that your hostel registration has been "
-                f"APPROVED and is now live on StayEase.\n\n"
+                f"APPROVED and is now live on Levitica Nestora.\n\n"
                 + (f"Note from our team: {note}\n\n" if note else "")
                 + f"Guests can now discover and book rooms at your hostel.\n\n"
-                f"Regards,\nThe StayEase Team"
+                f"Regards,\nThe Levitica Nestora Team"
             ),
         )
         return await self.repository.get_hostel_by_id(str(hostel.id))
@@ -318,7 +318,7 @@ class SuperAdminService:
 
         await _send_email(
             to=hostel.email,
-            subject="❌ Hostel Registration Update — StayEase",
+            subject="❌ Hostel Registration Update — Levitica Nestora",
             body=(
                 f"Dear Owner of '{hostel.name}',\n\n"
                 f"After reviewing your hostel registration, we regret to inform you that "
@@ -326,7 +326,7 @@ class SuperAdminService:
                 f"{reason}\n\n"
                 f"If you believe this is an error or would like to re-apply, please contact "
                 f"our support team.\n\n"
-                f"Regards,\nThe StayEase Team"
+                f"Regards,\nThe Levitica Nestora Team"
             ),
         )
         return await self.repository.get_hostel_by_id(str(hostel.id))
@@ -371,7 +371,7 @@ class SuperAdminService:
 
         await _send_email(
             to=hostel.email,
-            subject="📝 Action Required: Changes Needed for Your Hostel — StayEase",
+            subject="📝 Action Required: Changes Needed for Your Hostel — Levitica Nestora",
             body=(
                 f"Dear Owner of '{hostel.name}',\n\n"
                 f"Our review team has reviewed your hostel registration and requires some "
@@ -379,7 +379,7 @@ class SuperAdminService:
                 f"{reason}\n\n"
                 f"Please update your hostel details and resubmit for review. "
                 f"If you have any questions, please reach out to our support team.\n\n"
-                f"Regards,\nThe StayEase Team"
+                f"Regards,\nThe Levitica Nestora Team"
             ),
         )
         return await self.repository.get_hostel_by_id(str(hostel.id))

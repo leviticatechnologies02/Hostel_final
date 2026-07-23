@@ -1,4 +1,4 @@
-# StayEase MVP - Complete Authentication System Ready
+# Levitica Nestora MVP - Complete Authentication System Ready
 
 **Build Status:** ✅ 90% Complete | TypeScript: Zero errors | Vite Build: 542 KB
 
@@ -151,7 +151,7 @@ cd hostel-management-api
 python -m uvicorn app.main:app --reload
 
 # Terminal 2: Start Frontend
-cd stayease-web
+cd leviticanestora-web
 npm run dev
 
 # Browser: http://localhost:5173
@@ -262,7 +262,7 @@ src/app/
 
 ### Backend (`.env`)
 ```
-DATABASE_URL=postgresql://user:pass@localhost/stayease
+DATABASE_URL=postgresql://user:pass@localhost/leviticanestora
 JWT_SECRET=your-secret-key
 JWT_ALGORITHM=HS256
 JWT_EXPIRY_MINUTES=30
@@ -301,12 +301,12 @@ VITE_API_BASE_URL=http://localhost:8000/api/v1
 ## Test Credentials (After Seed Data)
 
 ### Super Admin
-- Email: `superadmin@stayease.com`
+- Email: `superadmin@leviticanestora.com`
 - Password: `Test@1234`
 - Role: `super_admin`
 
 ### Hostel Admin
-- Email: `admin@stayease.com`
+- Email: `admin@leviticanestora.com`
 - Password: `Test@1234`
 - Role: `hostel_admin`
 

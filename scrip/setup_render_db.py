@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Setup Render PostgreSQL Database for StayEase
+Setup Render PostgreSQL Database for Levitica Nestora
 
 Run from project root:
     python scripts/setup_render_db.py
@@ -54,7 +54,7 @@ def print_section(title):
 
 
 # Render Database Configuration
-RENDER_DATABASE_URL = "postgresql://stayease_db_0hw4_user:OLTv0s0MZ4ff88BYqohgiceUJITTSnUgG@dpg-d7kaci4m0tmc73aeivm0-a.oregon-postgres.render.com/stayease_db_0hw4"
+RENDER_DATABASE_URL = "postgresql://leviticanestora_db_0hw4_user:OLTv0s0MZ4ff88BYqohgiceUJITTSnUgG@dpg-d7kaci4m0tmc73aeivm0-a.oregon-postgres.render.com/leviticanestora_db_0hw4"
 
 
 def update_env_file():
@@ -287,7 +287,7 @@ def create_env_example():
     
     if not env_example_path.exists():
         example_content = """# Database Configuration
-DATABASE_URL=postgresql+asyncpg://postgres:password@localhost:5432/stayease_dev
+DATABASE_URL=postgresql+asyncpg://postgres:password@localhost:5432/leviticanestora_dev
 
 # Redis Configuration
 REDIS_URL=redis://localhost:6379/0
@@ -303,7 +303,7 @@ SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USER=your-email@gmail.com
 SMTP_PASSWORD=your-app-password
-EMAIL_FROM=noreply@stayease.com
+EMAIL_FROM=noreply@leviticanestora.com
 
 # Razorpay
 RAZORPAY_KEY_ID=rzp_test_xxxxx
@@ -313,7 +313,7 @@ RAZORPAY_WEBHOOK_SECRET=xxxxx
 # AWS S3
 AWS_ACCESS_KEY_ID=your-key
 AWS_SECRET_ACCESS_KEY=your-secret
-AWS_STORAGE_BUCKET_NAME=stayease-uploads
+AWS_STORAGE_BUCKET_NAME=leviticanestora-uploads
 AWS_REGION=ap-south-1
 
 # CORS
@@ -328,7 +328,7 @@ ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
 async def main():
     """Main function"""
     
-    print_section("STAYEASE - RENDER DATABASE SETUP")
+    print_section("LEVITICA_NESTORA - RENDER DATABASE SETUP")
     
     print_info(f"Project root: {project_root}")
     print_info(f"Database URL: {RENDER_DATABASE_URL[:60]}...")

@@ -1,7 +1,7 @@
 # test_all_routes.py
 #!/usr/bin/env python3
 """
-Comprehensive Test Script for StayEase API
+Comprehensive Test Script for Levitica Nestora API
 Tests: Payments, Visitor, and Student Routes
 
 Run: python test_all_routes.py
@@ -137,7 +137,7 @@ class PaymentRoutesTester:
         print_section("PAYMENT ROUTES SETUP")
         
         # Login as Admin
-        admin_data = login("admin1@stayease.com")
+        admin_data = login("admin1@leviticanestora.com")
         if admin_data:
             self.admin_token = admin_data.get("access_token")
             hostel_ids = admin_data.get("hostel_ids", [])
@@ -163,7 +163,7 @@ class PaymentRoutesTester:
             self.visitor_token = visitor_data.get("access_token")
         
         # Login as Super Admin
-        sa_data = login("superadmin@stayease.com")
+        sa_data = login("superadmin@leviticanestora.com")
         if sa_data:
             self.super_admin_token = sa_data.get("access_token")
         
@@ -426,7 +426,7 @@ class VisitorRoutesTester:
         print_info(f"Visitor ID: {self.visitor_id}")
         
         # Login as Admin to get hostel ID
-        admin_data = login("admin1@stayease.com")
+        admin_data = login("admin1@leviticanestora.com")
         if admin_data:
             hostel_ids = admin_data.get("hostel_ids", [])
             self.hostel_id = hostel_ids[0] if hostel_ids else None
@@ -1359,7 +1359,7 @@ class StudentRoutesTester:
 
 def run_all_tests():
     """Run all test suites"""
-    print_section("STAYEASE API - COMPREHENSIVE TEST SUITE")
+    print_section("LEVITICA_NESTORA API - COMPREHENSIVE TEST SUITE")
     print(f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print_info(f"API URL: {BASE_URL}")
     

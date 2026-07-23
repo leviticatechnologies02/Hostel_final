@@ -124,7 +124,7 @@ class VisitorRoutesTester:
         self.visitor_id = visitor_data.get("user_id")
         
         # Login as Admin to get hostel ID
-        admin_data = login("admin1@stayease.com")
+        admin_data = login("admin1@leviticanestora.com")
         if admin_data:
             self.admin_token = admin_data.get("access_token")
             hostel_ids = admin_data.get("hostel_ids", [])

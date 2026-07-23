@@ -22,8 +22,8 @@ import ssl
 # Note: The password appears to be: 0L7DvsoMZ4ff88BYqohgiceUJITTSmJG
 RENDER_PASSWORD = "0L7DvsoMZ4ff88BYqohgiceUJITTSmJG"
 RENDER_HOST = "dpg-d7kaci4m0tmc73aeivm0-a.oregon-postgres.render.com"
-RENDER_DATABASE = "stayease_db_0hw4"
-RENDER_USER = "stayease_db_0hw4_user"
+RENDER_DATABASE = "leviticanestora_db_0hw4"
+RENDER_USER = "leviticanestora_db_0hw4_user"
 RENDER_PORT = 5432
 
 # Connection URL with SSL (REQUIRED for Render)
@@ -212,7 +212,7 @@ SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USER=your-email@gmail.com
 SMTP_PASSWORD=your-app-password
-EMAIL_FROM=noreply@stayease.com
+EMAIL_FROM=noreply@leviticanestora.com
 
 # Razorpay Payment Gateway (Test Mode)
 RAZORPAY_KEY_ID=rzp_test_xxxxx
@@ -222,7 +222,7 @@ RAZORPAY_WEBHOOK_SECRET=xxxxx
 # AWS S3 File Storage (Optional)
 AWS_ACCESS_KEY_ID=your-aws-access-key
 AWS_SECRET_ACCESS_KEY=your-aws-secret-key
-AWS_STORAGE_BUCKET_NAME=stayease-uploads
+AWS_STORAGE_BUCKET_NAME=leviticanestora-uploads
 AWS_REGION=ap-south-1
 
 # CORS Configuration
@@ -273,7 +273,7 @@ async def run_migrations():
 async def main():
     """Main function"""
     
-    print_section("STAYEASE - RENDER DATABASE SETUP")
+    print_section("LEVITICA_NESTORA - RENDER DATABASE SETUP")
     
     # Show connection info
     show_connection_info()
@@ -333,7 +333,7 @@ async def seed_data():
     
     try:
         # Import seeder after path is set
-        from scripts.seed_data import StayEaseSeeder
+        from scripts.seed_data import Levitica NestoraSeeder
         from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
         from sqlalchemy.orm import sessionmaker
         
@@ -345,7 +345,7 @@ async def seed_data():
         
         print_info("Seeding data (this may take a few minutes)...")
         async with async_session() as session:
-            seeder = StayEaseSeeder(session)
+            seeder = Levitica NestoraSeeder(session)
             await seeder.run()
         
         await engine.dispose()

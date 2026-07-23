@@ -1,5 +1,5 @@
 """
-Celery configuration for StayEase.
+Celery configuration for Levitica Nestora.
 Handles background tasks like email sending, payment processing, etc.
 """
 from celery import Celery
@@ -11,7 +11,7 @@ settings = get_settings()
 
 # Create Celery app instance
 celery_app = Celery(
-    'stayease',
+    'leviticanestora',
     broker=settings.redis_url,
     backend=settings.redis_url,
     include=[

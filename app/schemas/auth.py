@@ -28,7 +28,7 @@ class LoginRequest(BaseModel):
         "json_schema_extra": {
             "examples": [
                 {
-                    "email_or_phone": "superadmin@stayease.com",
+                    "email_or_phone": "superadmin@leviticanestora.com",
                     "password": "Test@1234"
                 }
             ]

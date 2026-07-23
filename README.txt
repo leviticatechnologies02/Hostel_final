@@ -1,7 +1,7 @@
-# StayEase Backend API
+# Levitica Nestora Backend API
 
 FastAPI + PostgreSQL + Redis + Celery — multi-tenant hostel management & booking platform.
-Built for **Levitica Technologies — DCM StayEase**.
+Built for **Levitica Technologies — DCM Levitica Nestora**.
 
 ---
 
@@ -50,7 +50,7 @@ cp .env.example .env
 
 Minimum required in `.env`:
 ```env
-DATABASE_URL=postgresql+asyncpg://postgres:yourpassword@localhost:5432/stayease_dev
+DATABASE_URL=postgresql+asyncpg://postgres:yourpassword@localhost:5432/leviticanestora_dev
 SECRET_KEY=your-secret-key-at-least-32-chars
 
 # Email (Gmail App Password)
@@ -65,7 +65,7 @@ EMAIL_FROM=your@gmail.com
 
 ```sql
 -- In psql:
-CREATE DATABASE stayease_dev;
+CREATE DATABASE leviticanestora_dev;
 ```
 
 ### 5. Run migrations
@@ -125,11 +125,11 @@ All accounts use password: **`Test@1234`**
 
 | Role | Email | Access |
 |------|-------|--------|
-| Super Admin | `superadmin@stayease.com` | Full platform |
-| Hostel Admin 1 | `admin1@stayease.com` | Hyderabad + Bangalore |
-| Hostel Admin 2 | `admin2@stayease.com` | Pune + Mumbai |
-| Supervisor 1 | `supervisor1@stayease.com` | Green Valley Boys Hostel |
-| Supervisor 2 | `supervisor2@stayease.com` | Pearl Girls Hostel |
+| Super Admin | `superadmin@leviticanestora.com` | Full platform |
+| Hostel Admin 1 | `admin1@leviticanestora.com` | Hyderabad + Bangalore |
+| Hostel Admin 2 | `admin2@leviticanestora.com` | Pune + Mumbai |
+| Supervisor 1 | `supervisor1@leviticanestora.com` | Green Valley Boys Hostel |
+| Supervisor 2 | `supervisor2@leviticanestora.com` | Pearl Girls Hostel |
 | Visitor | `arun.kapoor@gmail.com` | Public booking flow |
 | Student (Hemant) | `hemant.pawade.lev044@levitica.in` | Student portal |
 | Student (Abhilash) | `abhilash.gurrampally.lev029@levitica.in` | Student portal |
@@ -374,11 +374,11 @@ FRONTEND_URL          # http://localhost:5173
 
 | Role | Email |
 |---|---|
-| Super Admin | superadmin@stayease.com |
-| Hostel Admin 1 | admin1@stayease.com |
-| Hostel Admin 2 | admin2@stayease.com |
-| Supervisor 1 | supervisor1@stayease.com |
-| Supervisor 2 | supervisor2@stayease.com |
+| Super Admin | superadmin@leviticanestora.com |
+| Hostel Admin 1 | admin1@leviticanestora.com |
+| Hostel Admin 2 | admin2@leviticanestora.com |
+| Supervisor 1 | supervisor1@leviticanestora.com |
+| Supervisor 2 | supervisor2@leviticanestora.com |
 | Visitor 1 | arun.kapoor@gmail.com |
 | Student 1 | rahul.sharma@student.com |
 | Student 2 | priya.patel@student.com |

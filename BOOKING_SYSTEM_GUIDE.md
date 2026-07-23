@@ -1,4 +1,4 @@
-# StayEase Booking System Guide
+# Levitica Nestora Booking System Guide
 
 ## Overview
 
@@ -297,8 +297,8 @@ const selection = JSON.parse(sessionStorage.getItem("bookingSelection")) as Sele
 ## Testing Scenarios
 
 ### Happy Path
-1. User navigates to `/booking/select?hostel=stayease-bangalore`
-2. System loads hostel "StayEase Bangalore" with 4 rooms
+1. User navigates to `/booking/select?hostel=leviticanestora-bangalore`
+2. System loads hostel "Levitica Nestora Bangalore" with 4 rooms
 3. User selects:
    - Booking Mode: Daily
    - Check-in: 2024-03-20

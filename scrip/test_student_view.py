@@ -11,7 +11,7 @@ from datetime import datetime
 async def check_students():
     # Connect directly to database
     conn = await asyncpg.connect(
-        "postgresql://postgres:Kiran$1234@localhost:5432/stayease_dev"
+        "postgresql://postgres:Kiran$1234@localhost:5432/leviticanestora_dev"
     )
     
     print("\n" + "=" * 80)

@@ -15,7 +15,7 @@ async def test_complaint_operations():
         print("\n📝 Step 1: Login as Admin")
         resp = await client.post(
             f"{BASE_URL}/auth/login",
-            json={"email_or_phone": "admin1@stayease.com", "password": "Test@1234"}
+            json={"email_or_phone": "admin1@leviticanestora.com", "password": "Test@1234"}
         )
         
         if resp.status_code != 200:
@@ -83,7 +83,7 @@ async def test_complaint_operations():
                     # First login as student to create complaint
                     student_login = await client.post(
                         f"{BASE_URL}/auth/login",
-                        json={"email_or_phone": "student@stayease.com", "password": "Test@1234"}
+                        json={"email_or_phone": "student@leviticanestora.com", "password": "Test@1234"}
                     )
                     
                     if student_login.status_code == 200:

@@ -109,7 +109,7 @@ def main():
     print_section("SUBSCRIPTION ENDPOINT DIAGNOSTIC")
     
     # Login as Super Admin
-    token = login("superadmin@stayease.com")
+    token = login("superadmin@leviticanestora.com")
     if not token:
         print_error("Cannot proceed without super admin token")
         return

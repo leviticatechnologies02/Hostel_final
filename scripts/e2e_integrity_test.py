@@ -38,16 +38,16 @@ def check(label, condition, detail=""):
 
 
 print("\n" + "=" * 60)
-print("  StayEase — Integrity & Relationship Test Suite")
+print("  Levitica Nestora — Integrity & Relationship Test Suite")
 print("=" * 60)
 
 # ── 1. Auth ───────────────────────────────────────────────────────────
 print("\n[1] Auth")
-status, data = req("POST", "/auth/login", {"email_or_phone": "superadmin@stayease.com", "password": "Test@1234"})
+status, data = req("POST", "/auth/login", {"email_or_phone": "superadmin@leviticanestora.com", "password": "Test@1234"})
 check("Super admin login", status == 200, f"status={status}")
 sa_token = data.get("access_token", "")
 
-status, data = req("POST", "/auth/login", {"email_or_phone": "admin1@stayease.com", "password": "Test@1234"})
+status, data = req("POST", "/auth/login", {"email_or_phone": "admin1@leviticanestora.com", "password": "Test@1234"})
 check("Admin login", status == 200, f"status={status}")
 admin_token = data.get("access_token", "")
 admin_hostel_ids = data.get("hostel_ids", [])
@@ -236,7 +236,7 @@ check("Student complaints", status == 200, f"{len(data)} complaints")
 
 # ── 9. Supervisor ─────────────────────────────────────────────────────
 print("\n[9] Supervisor")
-status, sup_login = req("POST", "/auth/login", {"email_or_phone": "supervisor1@stayease.com", "password": "Test@1234"})
+status, sup_login = req("POST", "/auth/login", {"email_or_phone": "supervisor1@leviticanestora.com", "password": "Test@1234"})
 sup_token = sup_login.get("access_token", "")
 
 status, data = req("GET", "/supervisor/dashboard", token=sup_token)

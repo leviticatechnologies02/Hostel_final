@@ -238,7 +238,7 @@ class StudentDetailsTester:
         print_header("TEST 1: Super Admin Students List Endpoint")
         
         # Login as Super Admin
-        sa_data = login("superadmin@stayease.com")
+        sa_data = login("superadmin@leviticanestora.com")
         if not sa_data:
             self.add_result("Super Admin Login", False, "Could not login")
             return None
@@ -318,7 +318,7 @@ class StudentDetailsTester:
         ]
         
         # Login as Super Admin
-        sa_data = login("superadmin@stayease.com")
+        sa_data = login("superadmin@leviticanestora.com")
         if not sa_data:
             return None
         
@@ -375,7 +375,7 @@ class StudentDetailsTester:
         print_header("TEST 3: Admin Student List Endpoints")
         
         # Login as Hostel Admin
-        admin_data = login("admin1@stayease.com")
+        admin_data = login("admin1@leviticanestora.com")
         if not admin_data:
             self.add_result("Admin Login", False)
             return None
@@ -432,7 +432,7 @@ class StudentDetailsTester:
         """Test getting payment status for a student"""
         print_header("TEST 4: Student Payment Status")
         
-        sa_data = login("superadmin@stayease.com")
+        sa_data = login("superadmin@leviticanestora.com")
         if not sa_data:
             return
         
@@ -548,7 +548,7 @@ from datetime import datetime
 
 async def check_students():
     conn = await asyncpg.connect(
-        "postgresql://postgres:Kiran$1234@localhost:5432/stayease_dev"
+        "postgresql://postgres:Kiran$1234@localhost:5432/leviticanestora_dev"
     )
     
     print("\\n" + "="*80)

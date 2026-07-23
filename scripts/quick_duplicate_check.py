@@ -18,14 +18,14 @@ def make_request(method, path, token=None, body=None):
 
 # Login
 status, data = make_request("POST", "/auth/login", body={
-    "email_or_phone": "superadmin@stayease.com",
+    "email_or_phone": "superadmin@leviticanestora.com",
     "password": "Test@1234"
 })
 token = data.get("access_token")
 
 # Try to create duplicate admin
 status, data = make_request("POST", "/super-admin/admins", token=token, body={
-    "email": "admin1@stayease.com",  # Already exists!
+    "email": "admin1@leviticanestora.com",  # Already exists!
     "phone": "9999999999",
     "full_name": "Duplicate Admin",
     "password": "Test@1234"

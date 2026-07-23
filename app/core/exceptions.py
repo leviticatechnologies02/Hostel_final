@@ -1,10 +1,10 @@
-class StayEaseError(Exception):
+class Levitica NestoraError(Exception):
     """Base domain exception."""
 
 
-class AuthorizationError(StayEaseError):
+class AuthorizationError(Levitica NestoraError):
     """Raised when role or tenancy checks fail."""
 
 
-class BookingConflictError(StayEaseError):
+class BookingConflictError(Levitica NestoraError):
     """Raised when overlapping inventory is detected."""

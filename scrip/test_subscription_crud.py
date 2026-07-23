@@ -127,8 +127,8 @@ def get_or_create_test_hostel(token: str) -> tuple[Optional[str], Optional[str],
         "latitude": 19.0760,
         "longitude": 72.8777,
         "phone": "+91-9876543210",
-        "email": "test@stayease.com",
-        "website": "https://test.stayease.com",
+        "email": "test@leviticanestora.com",
+        "website": "https://test.leviticanestora.com",
         "is_featured": False,
         "is_public": True,
         "rules_and_regulations": "Test rules"
@@ -188,7 +188,7 @@ def test_subscription_crud():
     print_section("SUBSCRIPTION CRUD TESTING")
     
     # Login as Super Admin
-    token = login("superadmin@stayease.com")
+    token = login("superadmin@leviticanestora.com")
     if not token:
         print_error("Cannot proceed without super admin token")
         return

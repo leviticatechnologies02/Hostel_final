@@ -34,8 +34,8 @@ async def test_create_hostel_commits_and_refreshes() -> None:
 
     result = await service.create_hostel(
         SuperAdminHostelCreateRequest(
-            name="StayEase One",
-            slug="stayease-one",
+            name="Levitica Nestora One",
+            slug="leviticanestora-one",
             description="A managed hostel property for students.",
             hostel_type="boys",
             address_line1="Street 1",

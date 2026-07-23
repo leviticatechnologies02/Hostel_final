@@ -4,7 +4,7 @@
 set -e
 
 echo "=========================================="
-echo "  StayEase Backend - Starting up..."
+echo "  Levitica Nestora Backend - Starting up..."
 echo "=========================================="
 
 # Print environment info
@@ -27,7 +27,7 @@ fi
 # Print startup message
 echo ""
 echo "=========================================="
-echo "  🚀 Starting StayEase API Server..."
+echo "  🚀 Starting Levitica Nestora API Server..."
 echo "=========================================="
 echo ""
 
