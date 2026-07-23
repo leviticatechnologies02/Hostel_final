@@ -91,6 +91,6 @@ async def test_create_admin_menu_raises_conflict_on_duplicate() -> None:
         )
 
     assert exc_info.value.status_code == 409
-    assert exc_info.value.detail == "A menu for this Meal Type already exists for the selected Week Start and Day. Please edit the existing menu instead."
+    assert exc_info.value.detail == "A menu already exists for the selected Day and Meal Type. Please edit the existing menu instead."
 
 

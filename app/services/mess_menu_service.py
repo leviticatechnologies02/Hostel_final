@@ -119,13 +119,12 @@ class MessMenuService:
         meal_type = validate_meal_type(payload.meal_type)
         day_of_week = validate_day_of_week(payload.day_of_week)
         
-        # Check for duplicate combo of week start date + day of week + meal type
+        # Check for duplicate combo of day of week + meal type for this hostel
         duplicate_query = (
             select(MessMenuItem.id)
             .join(MessMenu, MessMenu.id == MessMenuItem.menu_id)
             .where(
                 MessMenu.hostel_id == hostel_id,
-                MessMenu.week_start_date == payload.week_start_date,
                 MessMenuItem.day_of_week == day_of_week,
                 MessMenuItem.meal_type == meal_type,
             )
@@ -134,8 +133,9 @@ class MessMenuService:
         if duplicate_result.scalars().first():
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="A menu for this Meal Type already exists for the selected Week Start and Day. Please edit the existing menu instead.",
+                detail="A menu already exists for the selected Day and Meal Type. Please edit the existing menu instead.",
             )
+
         
         menu = MessMenu(
             hostel_id=hostel_id,
@@ -244,7 +244,6 @@ class MessMenuService:
                 .join(MessMenu, MessMenu.id == MessMenuItem.menu_id)
                 .where(
                     MessMenu.hostel_id == menu.hostel_id,
-                    MessMenu.week_start_date == menu.week_start_date,
                     MessMenuItem.day_of_week == target_day_of_week,
                     MessMenuItem.meal_type == target_meal_type,
                     MessMenuItem.id != item.id,
@@ -254,7 +253,7 @@ class MessMenuService:
             if duplicate_result.scalars().first():
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
-                    detail="A menu for this Meal Type already exists for the selected Week Start and Day. Please edit the existing menu instead.",
+                    detail="A menu already exists for the selected Day and Meal Type. Please edit the existing menu instead.",
                 )
         
         # Update fields
