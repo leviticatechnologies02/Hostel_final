@@ -119,6 +119,24 @@ class MessMenuService:
         meal_type = validate_meal_type(payload.meal_type)
         day_of_week = validate_day_of_week(payload.day_of_week)
         
+        # Check for duplicate combo of week start date + day of week + meal type
+        duplicate_query = (
+            select(MessMenuItem.id)
+            .join(MessMenu, MessMenu.id == MessMenuItem.menu_id)
+            .where(
+                MessMenu.hostel_id == hostel_id,
+                MessMenu.week_start_date == payload.week_start_date,
+                MessMenuItem.day_of_week == day_of_week,
+                MessMenuItem.meal_type == meal_type,
+            )
+        )
+        duplicate_result = await self.session.execute(duplicate_query)
+        if duplicate_result.scalars().first():
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="A menu for this Meal Type already exists for the selected Week Start and Day. Please edit the existing menu instead.",
+            )
+        
         menu = MessMenu(
             hostel_id=hostel_id,
             week_start_date=payload.week_start_date,
@@ -215,6 +233,29 @@ class MessMenuService:
         
         if payload.day_of_week is not None:
             day_of_week = validate_day_of_week(payload.day_of_week)
+
+        # Check for duplicates on update
+        target_meal_type = meal_type if meal_type is not None else item.meal_type
+        target_day_of_week = day_of_week if day_of_week is not None else item.day_of_week
+        
+        if meal_type is not None or day_of_week is not None:
+            duplicate_query = (
+                select(MessMenuItem.id)
+                .join(MessMenu, MessMenu.id == MessMenuItem.menu_id)
+                .where(
+                    MessMenu.hostel_id == menu.hostel_id,
+                    MessMenu.week_start_date == menu.week_start_date,
+                    MessMenuItem.day_of_week == target_day_of_week,
+                    MessMenuItem.meal_type == target_meal_type,
+                    MessMenuItem.id != item.id,
+                )
+            )
+            duplicate_result = await self.session.execute(duplicate_query)
+            if duplicate_result.scalars().first():
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="A menu for this Meal Type already exists for the selected Week Start and Day. Please edit the existing menu instead.",
+                )
         
         # Update fields
         if meal_type is not None:
@@ -227,6 +268,7 @@ class MessMenuService:
             item.is_veg = payload.is_veg
         if payload.special_note is not None:
             item.special_note = payload.special_note
+
         
         await self.session.commit()
         await self.session.refresh(item)
