@@ -1672,22 +1672,53 @@ async def http_exception_handler(request, exc: HTTPException):
     return JSONResponse(status_code=exc.status_code, content={"detail": detail, "code": code})
 
 
+FRIENDLY_MESSAGES = {
+    "body.full_name": {
+        "string_pattern_mismatch": "Full name must contain only alphabets and spaces. Numbers and special characters are not allowed.",
+        "string_too_short": "Full name must be at least 2 characters long.",
+        "string_too_long": "Full name must not exceed 255 characters.",
+        "missing": "Full name is required.",
+    },
+    "body.email": {
+        "value_error": "Please enter a valid email address.",
+        "missing": "Email is required.",
+    },
+    "body.phone": {
+        "string_too_short": "Phone number must be at least 8 digits.",
+        "string_too_long": "Phone number must not exceed 30 characters.",
+        "missing": "Phone number is required.",
+    },
+    "body.password": {
+        "string_too_short": "Password must be at least 8 characters long.",
+        "missing": "Password is required.",
+    },
+}
+
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    """Handle Pydantic validation errors and return 422."""
+    """Handle Pydantic validation errors and return 422 with friendly messages."""
     errors = []
     for error in exc.errors():
         field = ".".join(str(loc) for loc in error["loc"])
+        error_type = error["type"]
+
+        # Look up a friendly message for this field + error type
+        friendly_msg = (
+            FRIENDLY_MESSAGES.get(field, {}).get(error_type)
+            or FRIENDLY_MESSAGES.get(field, {}).get("default")
+            or error["msg"]
+        )
+
         errors.append({
             "field": field,
-            "message": error["msg"],
-            "type": error["type"]
+            "message": friendly_msg,
+            "type": error_type
         })
-    
+
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         content={
-            "detail": "Validation error",
+            "detail": errors[0]["message"] if len(errors) == 1 else "Validation error",
             "code": "validation_error",
             "errors": errors
         }
