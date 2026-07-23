@@ -39,6 +39,14 @@ async def _send_smtp(*, to: str, subject: str, html: str) -> None:
     msg["Subject"] = subject
     msg["From"] = f"StayEase <{s.email_from}>"
     msg["To"] = to
+    
+    # Strip basic HTML tags for the plain text version
+    import re
+    text = re.sub(r'<style.*?>.*?</style>', '', html, flags=re.IGNORECASE | re.DOTALL)
+    text = re.sub(r'<[^>]+>', ' ', text)
+    text = re.sub(r'\s+', ' ', text).strip()
+    
+    msg.attach(MIMEText(text, "plain", "utf-8"))
     msg.attach(MIMEText(html, "html", "utf-8"))
 
     use_tls = s.smtp_port == 465
@@ -69,6 +77,11 @@ async def _send_brevo(*, to: str, subject: str, html: str) -> None:
         "content-type": "application/json",
     }
     
+    import re
+    text_content = re.sub(r'<style.*?>.*?</style>', '', html, flags=re.IGNORECASE | re.DOTALL)
+    text_content = re.sub(r'<[^>]+>', ' ', text_content)
+    text_content = re.sub(r'\s+', ' ', text_content).strip()
+
     payload = {
         "sender": {
             "name": "StayEase",
@@ -80,7 +93,8 @@ async def _send_brevo(*, to: str, subject: str, html: str) -> None:
             }
         ],
         "subject": subject,
-        "htmlContent": html
+        "htmlContent": html,
+        "textContent": text_content
     }
     
     async with httpx.AsyncClient() as client:
