@@ -480,6 +480,36 @@ class AdminService:
             raise HTTPException(status_code=404, detail="Bed not found.")
         if str(bed.hostel_id) != hostel_id:
             raise HTTPException(status_code=400, detail="Bed does not belong to this hostel.")
+        # Parse dates early
+        try:
+            check_in = date.fromisoformat(payload.check_in_date)
+            check_out = date.fromisoformat(payload.check_out_date)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
+
+        if check_out <= check_in:
+            raise HTTPException(status_code=400, detail="check_out_date must be after check_in_date.")
+
+        # Check if the bed is already occupied by a checked-in student
+        from app.models.room import BedStatus
+        if bed.status == BedStatus.OCCUPIED:
+            raise HTTPException(
+                status_code=409,
+                detail="This bed is already occupied. Please select another available bed."
+            )
+
+        # Check for reservation overlaps
+        from app.repositories.booking_repository import BookingRepository
+        booking_repo = BookingRepository(self.session)
+        if await booking_repo.has_overlap(
+            bed_id=payload.bed_id,
+            start_date=check_in,
+            end_date=check_out,
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail="This bed is already occupied or reserved for the requested dates. Please select another available bed."
+            )
 
         # Validate gender if provided
         if hasattr(payload, 'gender') and payload.gender:

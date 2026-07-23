@@ -333,7 +333,7 @@ async def seed_data():
     
     try:
         # Import seeder after path is set
-        from scripts.seed_data import Levitica NestoraSeeder
+        from scripts.seed_data import LeviticaNestoraSeeder
         from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
         from sqlalchemy.orm import sessionmaker
         
@@ -343,9 +343,9 @@ async def seed_data():
         print_info("Creating session...")
         async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
         
-        print_info("Seeding data (this may take a few minutes)...")
+        # Run seeding
         async with async_session() as session:
-            seeder = Levitica NestoraSeeder(session)
+            seeder = LeviticaNestoraSeeder(session)
             await seeder.run()
         
         await engine.dispose()

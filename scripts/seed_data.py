@@ -389,7 +389,7 @@ MAINTENANCE_DATA = [
 # ---------------------------------------------------------------------------
 # Seeder class
 # ---------------------------------------------------------------------------
-class Levitica NestoraSeeder:
+class LeviticaNestoraSeeder:
     def __init__(self, session: AsyncSession):
         self.session = session
         self.users: dict[str, str] = {}
@@ -1073,7 +1073,7 @@ async def _run():
 
     async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
     async with async_session() as session:
-        seeder = Levitica NestoraSeeder(session)
+        seeder = LeviticaNestoraSeeder(session)
         await seeder.run()
     await engine.dispose()
 

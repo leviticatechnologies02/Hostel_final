@@ -21,7 +21,7 @@ import app.models.student    # noqa: F401
 import app.models.payment    # noqa: F401
 import app.models.operations # noqa: F401
 
-from scripts.seed_data import Levitica NestoraSeeder
+from scripts.seed_data import LeviticaNestoraSeeder
 
 settings = get_settings()
 
@@ -41,7 +41,7 @@ async def _run():
 
     async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
     async with async_session() as session:
-        seeder = Levitica NestoraSeeder(session)
+        seeder = LeviticaNestoraSeeder(session)
         await seeder.run()
 
     await engine.dispose()

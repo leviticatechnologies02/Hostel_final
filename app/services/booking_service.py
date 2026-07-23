@@ -393,6 +393,19 @@ class BookingService:
         if not booking.bed_id:
             raise HTTPException(status_code=400, detail="No bed assigned to this booking.")
 
+        # Check if the bed is already occupied by another active checked-in booking/student
+        active_booking_query = select(Booking).where(
+            Booking.bed_id == booking.bed_id,
+            Booking.status == BookingStatus.CHECKED_IN,
+            Booking.id != booking.id,
+        )
+        active_booking_result = await self.session.execute(active_booking_query)
+        if active_booking_result.scalars().first():
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="This bed is already occupied. Please select another available bed.",
+            )
+
         old_status = booking.status
         booking.status = BookingStatus.CHECKED_IN
 
@@ -415,6 +428,12 @@ class BookingService:
                 end_date=booking.check_out_date,
                 status=BedStayStatus.ACTIVE,
             )
+
+        # Update Bed.status in the DB
+        from app.models.room import Bed, BedStatus
+        bed = await self.session.get(Bed, booking.bed_id)
+        if bed:
+            bed.status = BedStatus.OCCUPIED
 
         await self.repository.add_status_history(
             booking_id=str(booking.id),
@@ -453,6 +472,12 @@ class BookingService:
         bed_stay = result.scalar_one_or_none()
         if bed_stay:
             bed_stay.status = BedStayStatus.COMPLETED
+
+        # Update Bed.status in DB
+        from app.models.room import Bed, BedStatus
+        bed = await self.session.get(Bed, booking.bed_id)
+        if bed:
+            bed.status = BedStatus.AVAILABLE
 
         await self.repository.add_status_history(
             booking_id=str(booking.id),

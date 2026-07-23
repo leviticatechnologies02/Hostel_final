@@ -17,7 +17,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app.config import get_settings
 from app.core.database import Base
-from scripts.seed_data import Levitica NestoraSeeder
+from scripts.seed_data import LeviticaNestoraSeeder
 
 # Import all models so Base.metadata knows about them
 import app.models.user
@@ -39,6 +39,7 @@ async def seed_render():
     print(f"Database URL: {settings.database_url[:50]}...\n")
     
     # Create engine
+    # Create engine
     engine = create_async_engine(settings.database_url, echo=True)
     
     # Create tables if they don't exist
@@ -50,7 +51,7 @@ async def seed_render():
     # Create session and run seeder
     async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
     async with async_session() as session:
-        seeder = Levitica NestoraSeeder(session)
+        seeder = LeviticaNestoraSeeder(session)
         await seeder.run()
     
     await engine.dispose()

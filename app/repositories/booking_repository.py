@@ -57,25 +57,23 @@ class BookingRepository:
     async def has_overlap(self, *, bed_id: str, start_date: date, end_date: date, exclude_booking_id: str | None = None) -> bool:
         """
         Check if there's an overlapping BedStay for the given bed and dates.
-        
-        Overlap logic: Two date ranges overlap if NOT (end1 < start2 OR end2 < start1)
-        Which simplifies to: start1 < end2 AND end1 > start2
-        
-        Args:
-            bed_id: The bed to check
-            start_date: Start date of new booking
-            end_date: End date of new booking
-            exclude_booking_id: Optional booking ID to exclude (for updates)
-        
-        Returns:
-            True if overlap exists, False if bed is available
         """
+        from datetime import date as dt_date
+        from sqlalchemy import case, func
+
+        today = dt_date.today()
+
+        effective_end_date = case(
+            (BedStay.status == BedStayStatus.ACTIVE, func.greatest(BedStay.end_date, today)),
+            else_=BedStay.end_date
+        )
+
         query = select(BedStay.id).where(
             BedStay.bed_id == bed_id,
             BedStay.status.in_([BedStayStatus.RESERVED, BedStayStatus.ACTIVE]),
             # Overlap condition: start1 < end2 AND end1 > start2
             BedStay.start_date < end_date,
-            BedStay.end_date > start_date,
+            effective_end_date > start_date,
         )
         
         # Exclude self when updating an existing booking
@@ -109,14 +107,22 @@ class BookingRepository:
         Get all available beds for the given date range using a single NOT EXISTS query.
         No N+1 — one query total.
         """
-        from sqlalchemy import not_, exists
+        from sqlalchemy import not_, exists, case, func
+        from datetime import date as dt_date
+
+        today = dt_date.today()
+
+        effective_end_date = case(
+            (BedStay.status == BedStayStatus.ACTIVE, func.greatest(BedStay.end_date, today)),
+            else_=BedStay.end_date
+        )
 
         occupied_subq = (
             select(BedStay.bed_id)
             .where(
                 BedStay.status.in_([BedStayStatus.RESERVED, BedStayStatus.ACTIVE]),
                 BedStay.start_date < end_date,
-                BedStay.end_date > start_date,
+                effective_end_date > start_date,
             )
             .correlate(Bed)
             .where(BedStay.bed_id == Bed.id)
